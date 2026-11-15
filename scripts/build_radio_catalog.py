@@ -65,8 +65,20 @@ def refresh_station_sources(station):
     ]
 
 
+def normalize_tags(tags):
+    if isinstance(tags, str):
+        tags = tags.split(",")
+    if not isinstance(tags, (list, tuple, set)):
+        return []
+    return list(dict.fromkeys(str(tag).strip() for tag in tags if str(tag).strip()))
+
+
 def make_stream(source, url, codec="", bitrate=0, priority=50, source_station_id=None):
-    quality = priority + min((bitrate or 0) / 10.0, 20.0)
+    try:
+        bitrate = max(0, int(bitrate or 0))
+    except (TypeError, ValueError):
+        bitrate = 0
+    quality = priority + min(bitrate / 10.0, 20.0)
     return {
         "source": source,
         "sources": [source],
@@ -89,14 +101,14 @@ def make_station(name, country="", country_code="", language="", tags=None, stre
         for stream in streams if stream.get("sourceStationId")
     }
     station = {
-        "stationUuid": f"radsync:{slug(name)}",
+        "stationUuid": f"radsync:{slug(name)}:{slug(country_code or country or 'unknown')}:{slug(language or 'unknown')}",
         "sourceIds": source_ids,
-        "name": name.strip(),
+        "name": str(name or "").strip(),
         "normalizedName": normalize_name(name),
         "country": country,
         "countryCode": country_code,
         "language": language,
-        "tags": tags or [],
+        "tags": normalize_tags(tags),
         "streams": streams,
         "defaultStreamIndex": 0,
         "defaultSource": streams[0]["source"] if streams else None,
@@ -372,7 +384,7 @@ async def main():
 
     for station in stations:
         for tag in station["tags"] or ["uncategorized"]:
-            genre_groups.setdefault(tag.lower(), []).append(station)
+            genre_groups.setdefault(str(tag).strip().lower() or "uncategorized", []).append(station)
         country_groups.setdefault((station["countryCode"] or "unknown").lower(), []).append(station)
         language_groups.setdefault((station["language"] or "unknown").lower(), []).append(station)
 
