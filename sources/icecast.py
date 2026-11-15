@@ -1,13 +1,10 @@
-"""Icecast directory source adapter."""
+"""Icecast Yellow Pages source adapter."""
 import xml.etree.ElementTree as ET
 
 import aiohttp
 
-ICECAST_URL = "https://dir.xiph.org/yp.xml"
-
-
-async def fetch_directory(session: aiohttp.ClientSession):
-    async with session.get(ICECAST_URL, headers={"User-Agent": "Radsync/0.1"}) as response:
+async def fetch_directory(session: aiohttp.ClientSession, url: str):
+    async with session.get(url, headers={"User-Agent": "Radsync/1.0"}) as response:
         response.raise_for_status()
         return await response.text()
 
@@ -26,16 +23,12 @@ def parse_directory(xml_text: str):
         if not name or not stream_url:
             continue
 
-        genres = [genre.strip() for genre in text("genre").split(",") if genre.strip()]
-        bitrate_text = text("bitrate")
-        bitrate = int(bitrate_text) if bitrate_text.isdigit() else 0
-
         stations.append({
             "name": name,
             "stream_url": stream_url,
-            "genres": genres,
-            "codec": text("codec") or "",
-            "bitrate": bitrate,
+            "genres": [genre.strip() for genre in text("genre").split(",") if genre.strip()],
+            "codec": text("codec"),
+            "bitrate": int(text("bitrate")) if text("bitrate").isdigit() else 0,
         })
 
     return stations
