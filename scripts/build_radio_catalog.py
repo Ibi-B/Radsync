@@ -70,7 +70,12 @@ def normalize_tags(tags):
         tags = tags.split(",")
     if not isinstance(tags, (list, tuple, set)):
         return []
-    return list(dict.fromkeys(str(tag).strip() for tag in tags if str(tag).strip()))
+    normalized = {}
+    for tag in tags:
+        value = str(tag).strip()
+        if value:
+            normalized.setdefault(value.casefold(), value)
+    return list(normalized.values())
 
 
 def make_stream(source, url, codec="", bitrate=0, priority=50, source_station_id=None):
@@ -383,8 +388,9 @@ async def main():
     language_groups = {}
 
     for station in stations:
-        for tag in station["tags"] or ["uncategorized"]:
-            genre_groups.setdefault(str(tag).strip().lower() or "uncategorized", []).append(station)
+        station_genres = {str(tag).strip().casefold() or "uncategorized" for tag in station["tags"]}
+        for tag in station_genres or {"uncategorized"}:
+            genre_groups.setdefault(tag, []).append(station)
         country_groups.setdefault((station["countryCode"] or "unknown").lower(), []).append(station)
         language_groups.setdefault((station["language"] or "unknown").lower(), []).append(station)
 
