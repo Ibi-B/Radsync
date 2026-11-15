@@ -2,6 +2,7 @@ import unittest
 
 from scripts.build_radio_catalog import (
     find_station_match,
+    group_slug,
     make_station,
     make_stream,
     merge_station,
@@ -62,6 +63,16 @@ class CatalogAggregationTests(unittest.TestCase):
         grouped_sources = {group["source"] for group in station["sourceGroups"]}
         self.assertEqual({"source-a", "source-b"}, grouped_sources)
         self.assertTrue(all(group["streamIndexes"] == [0] for group in station["sourceGroups"]))
+
+    def test_long_group_names_are_bounded_and_collision_resistant(self):
+        prefix = "00s-hits-nostalgic-pop-" * 20
+        first = group_slug(prefix + "version-a")
+        second = group_slug(prefix + "version-b")
+
+        self.assertLessEqual(len(first), 96)
+        self.assertLessEqual(len(second), 96)
+        self.assertNotEqual(first, second)
+        self.assertTrue(first.endswith(__import__("hashlib").sha256((prefix + "version-a").encode("utf-8")).hexdigest()[:12]))
 
     def test_source_group_indexes_match_sorted_streams(self):
         station = self.station("source-a", "https://a.example/live", 50)
