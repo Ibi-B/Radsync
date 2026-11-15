@@ -1,33 +1,43 @@
-"""Shared M3U parsing helpers."""
+"""Tolerant M3U/M3U8 parser supporting common EXTINF attribute variations."""
+import re
+from urllib.parse import urljoin
 
 
-def parse_m3u(text: str):
+ATTRIBUTE_RE = re.compile(r'([A-Za-z0-9_-]+)="([^"]*)"')
+
+
+def parse_m3u(text: str, base_url: str = ""):
     stations = []
     current = None
 
-    for raw_line in text.splitlines():
+    for raw_line in (text or "").lstrip("\ufeff").splitlines():
         line = raw_line.strip()
         if not line:
             continue
 
-        if line.startswith("#EXTINF:"):
-            metadata = line.split(",", 1)[1] if "," in line else ""
-            attributes = {}
-
-            for part in line.split(" "):
-                if "=" in part and not part.startswith("#EXTINF:"):
-                    key, value = part.split("=", 1)
-                    attributes[key.strip()] = value.strip().strip('"')
-
+        upper = line.upper()
+        if upper.startswith("#EXTINF:"):
+            metadata = line.split(",", 1)[1].strip() if "," in line else ""
+            attributes = {key.lower(): value for key, value in ATTRIBUTE_RE.findall(line)}
+            duration = line.split(":", 1)[1].split(",", 1)[0].strip()
             current = {
-                "name": metadata.strip(),
+                "name": metadata or attributes.get("tvg-name") or attributes.get("name") or "",
                 "attributes": attributes,
+                "duration": duration,
+                "country": attributes.get("tvg-country", ""),
+                "language": attributes.get("tvg-language", ""),
+                "genres": [attributes.get("group-title", "")] if attributes.get("group-title") else [],
+                "logo": attributes.get("tvg-logo", ""),
+                "station_id": attributes.get("tvg-id", ""),
             }
         elif line.startswith("#"):
             continue
         elif current is not None:
-            current["stream_url"] = line
+            current["stream_url"] = urljoin(base_url, line) if base_url else line
             stations.append(current)
             current = None
+        elif line.startswith(("http://", "https://")):
+            # Bare stream URL: retain it, but do not invent a station name.
+            stations.append({"name": "", "stream_url": line, "attributes": {}})
 
-    return stations
+    return [station for station in stations if station.get("name") and station.get("stream_url")]

@@ -7,34 +7,86 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: radsync-state
   cancel-in-progress: false
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out Radsync main
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Restore durable provider snapshots
+        id: state_checkout
+        uses: actions/checkout@v4
+        with:
+          ref: radsync-state
+          path: state
+          fetch-depth: 1
+          persist-credentials: true
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt
-      - run: python scripts/build_radio_catalog.py
-      - run: python scripts/validate_catalog.py
-      - uses: actions/upload-pages-artifact@v3
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+
+      - name: Validate restored provider state
+        id: validate_state
+        run: python -m sources.state_cli validate --state-dir state
+
+      - name: Run regression tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Build catalogue using fresh or last-good provider data
+        id: build_catalogue
+        run: python scripts/build_radio_catalog.py --state-dir state
+
+      - name: Validate published catalogue
+        if: ${{ steps.build_catalogue.outcome == 'success' }}
+        run: python scripts/validate_catalog.py
+
+      - name: Persist provider snapshots
+        if: ${{ always() && steps.state_checkout.outcome == 'success' && steps.validate_state.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          python -m sources.state_cli validate --state-dir state
+          git -C state config user.name "github-actions[bot]"
+          git -C state config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C state add --all
+          if git -C state diff --cached --quiet; then
+            echo "No provider snapshot changes to persist."
+          else
+            git -C state commit -m "Persist Radsync provider snapshots for run ${GITHUB_RUN_ID}"
+            git -C state push origin HEAD:refs/heads/radsync-state
+          fi
+
+      - name: Upload Pages artifact
+        if: ${{ steps.build_catalogue.outcome == 'success' }}
+        uses: actions/upload-pages-artifact@v3
         with:
           path: output
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - id: deployment
+      - name: Deploy radio catalogue
+        id: deployment
         uses: actions/deploy-pages@v4

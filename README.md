@@ -1,0 +1,62 @@
+# Radsync
+
+Radsync is BeastED's independent radio catalogue aggregation and publication service. It performs provider collection, format adaptation, station reconciliation, source provenance, stream ranking, and genre/country/language grouping outside the app. BeastED consumes a stable, versioned JSON contract; playback and radio UI remain in BeastED.
+
+## Core data rules
+
+- One canonical station may contain many selectable stream variants.
+- Duplicate station entries are reconciled only when their available country/language identity is compatible.
+- Every distinct valid HTTP(S) stream URL is retained. When providers publish the same URL, it is stored once while all provider provenance is retained.
+- `sources` and `sourceGroups` expose the providers behind the variants; source-group indexes refer to `streams`.
+- The highest-ranked stream is at index zero and is selected by `defaultStreamIndex: 0`. `defaultSource` identifies its provider.
+- Ranking currently uses configured provider priority plus a bounded bitrate contribution. It does not yet claim that a stream is live; availability-aware ranking is a separate future stage.
+- Empty or invalid source responses cannot overwrite that provider's last-good snapshot.
+
+## Provider adaptability
+
+Provider responses are treated as upstream input, not as the app's data contract. Shared helpers in `sources/normalize.py` recognize common variations in:
+
+- response envelopes: arrays, `data`, `results`, `items`, `stations`, `channels`, and keyed record maps
+- station names and IDs: `name`, `title`, `stationName`, `station_name`, UUID and ID variants
+- stream URLs: `url`, `streamUrl`, `stream_url`, `listen_url`, `url_resolved`, and related variants
+- country, language, genre/tag, codec, and bitrate field names
+- tags represented as comma/semicolon-delimited strings, arrays, or small objects
+
+M3U/M3U8 parsing retains common EXTINF metadata (station IDs, country, language, genre and logo). Icecast XML parsing tolerates XML namespaces and alternate element names. GitHub playlist discovery tolerates common tree response wrappers.
+
+When a provider changes its format beyond these known variants, update its adapter and add a fixture/regression test there. Do not change the BeastED output contract just to mirror an upstream API. Unknown or ambiguous data should be rejected or reported, not silently misclassified.
+
+## Durable provider state
+
+The scheduled/manual refresh workflow checks out a dedicated `radsync-state` branch into a separate `state/` directory. Each enabled provider has its own versioned snapshot under `state/sources/`.
+
+- Successful, non-empty provider fetches atomically replace only that provider's snapshot.
+- A failed or empty provider response reuses only that provider's own last-good snapshot and marks its source report entry `stale`.
+- One provider's failure cannot overwrite another provider's snapshot.
+- Corrupt or unsupported state is rejected before use.
+- The workflow persists snapshots to `radsync-state` with a narrowly scoped `contents: write` permission.
+- Snapshot state is not included in the GitHub Pages artifact; only the public catalogue is deployed.
+
+The current release is not advanced if no usable stations can be assembled. The previous Pages deployment therefore remains available when the complete refresh fails.
+
+## Published BeastED contract
+
+`output/current/master-index.json` points to an immutable versioned release. The versioned master index exposes `stationsUrl`, station/stream counts and genre/country/language group indexes.
+
+Each station contains canonical identity, provider IDs, descriptive metadata, `streams`, `sources`, `sourceGroups`, `defaultStreamIndex`, and `defaultSource`. BeastED should display one station record, show its source groups as alternatives, and play the default stream unless the user chooses another source.
+
+## Local checks
+
+```bash
+python -m pip install -r requirements.txt
+python -m unittest discover -s tests -v
+python -m sources.state_cli validate --state-dir state
+python scripts/build_radio_catalog.py --state-dir state
+python scripts/validate_catalog.py
+```
+
+Pull-request validation runs offline regression tests. Scheduled/manual refresh restores provider snapshots, validates state, builds and validates the public catalogue, persists updated provider snapshots, and deploys the Pages artifact.
+
+## Known future enhancement
+
+Live stream probing and health-aware default selection are not yet implemented. Until then, “best” means highest configured ranking score, not proven currently playable. The existing alternatives remain available to BeastED regardless of the default.

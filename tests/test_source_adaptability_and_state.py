@@ -1,0 +1,131 @@
+import json
+import tempfile
+import unittest
+from unittest.mock import AsyncMock
+from pathlib import Path
+
+from sources.normalize import as_records, get_value, normalize_record, as_tags
+from sources.state import load_snapshot, save_snapshot, validate_state
+from sources.m3u import parse_m3u
+from scripts.build_radio_catalog import load_source
+from sources.icecast import parse_directory
+
+
+class SourceNormalizationTests(unittest.TestCase):
+    def test_accepts_common_envelope_shapes(self):
+        for payload in (
+            [{"stationName": "Example", "streamUrl": "https://a.example/live"}],
+            {"data": {"items": [{"title": "Example", "url": "https://a.example/live"}]}},
+            {"results": [{"name": "Example", "url_resolved": "https://a.example/live"}]},
+            {"abc": {"name": "Example", "url": "https://a.example/live"}},
+        ):
+            self.assertEqual(1, len(as_records(payload)))
+
+    def test_aliases_and_nested_metadata_normalize(self):
+        record = normalize_record({
+            "stationName": "Example Radio",
+            "streamUrl": "https://a.example/live",
+            "countryCode": "GB",
+            "languages": ["English", "Welsh"],
+            "genres": [{"name": "Jazz"}, "News"],
+            "bitRate": "192",
+            "stationUuid": "source-123",
+        })
+        self.assertEqual("Example Radio", record["name"])
+        self.assertEqual("GB", record["countryCode"])
+        self.assertEqual(["Jazz", "News"], record["tags"])
+        self.assertEqual("source-123", record["sourceStationId"])
+
+    def test_nested_station_and_stream_objects_are_supported(self):
+        record = normalize_record({
+            "station": {"title": "Nested Radio", "countryCode": "SE", "stationUuid": "nested-1"},
+            "stream": {"streamUrl": "https://nested.example/live", "codec": "AAC", "bitrate": 192},
+        })
+        self.assertEqual("Nested Radio", record["name"])
+        self.assertEqual("https://nested.example/live", record["url"])
+        self.assertEqual("SE", record["countryCode"])
+        self.assertEqual("nested-1", record["sourceStationId"])
+
+    def test_tags_accept_strings_lists_and_objects(self):
+        self.assertEqual(["Jazz", "News"], as_tags("Jazz; News, jazz"))
+        self.assertEqual(["Rock", "Pop"], as_tags([{"title": "Rock"}, "Pop"]))
+
+
+class PlaylistFormatTests(unittest.TestCase):
+    def test_m3u_preserves_extended_metadata_and_handles_bom(self):
+        payload = '\ufeff#EXTM3U\n#EXTINF:-1 tvg-id="station.one" tvg-country="GB" tvg-language="English" group-title="Jazz",Example Radio\nhttps://radio.example/live\n'
+        records = parse_m3u(payload)
+        self.assertEqual(1, len(records))
+        self.assertEqual("Example Radio", records[0]["name"])
+        self.assertEqual("station.one", records[0]["station_id"])
+        self.assertEqual(["Jazz"], records[0]["genres"])
+        self.assertEqual("GB", records[0]["country"])
+
+
+    def test_icecast_parser_handles_xml_namespaces_and_field_variants(self):
+        xml = '<root xmlns="urn:icecast"><station><name>Example</name><url>https://radio.example/live</url><genres>Jazz; News</genres><country_code>GB</country_code></station></root>'
+        records = parse_directory(xml)
+        self.assertEqual(1, len(records))
+        self.assertEqual("Example", records[0]["name"])
+        self.assertEqual("https://radio.example/live", records[0]["stream_url"])
+        self.assertEqual("GB", records[0]["country_code"])
+
+
+class ProviderSnapshotTests(unittest.TestCase):
+    def test_snapshot_round_trip_and_validation(self):
+        station = {"name": "Example", "streams": [{"source": "radio-browser", "url": "https://a.example/live"}]}
+        with tempfile.TemporaryDirectory() as temporary:
+            saved = save_snapshot(temporary, "radio-browser", [station])
+            restored = load_snapshot(temporary, "radio-browser")
+            self.assertEqual(saved["stations"], restored["stations"])
+            self.assertEqual("radio-browser", restored["source"])
+            self.assertEqual((True, []), validate_state(temporary))
+
+    def test_empty_snapshot_is_never_saved(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaises(ValueError):
+                save_snapshot(temporary, "radio-browser", [])
+            self.assertIsNone(load_snapshot(temporary, "radio-browser"))
+
+    def test_corrupt_snapshot_is_not_restored(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "sources" / "radio-browser.json"
+            path.parent.mkdir()
+            path.write_text("{broken", encoding="utf-8")
+            self.assertIsNone(load_snapshot(temporary, "radio-browser"))
+            valid, issues = validate_state(temporary)
+            self.assertFalse(valid)
+            self.assertTrue(issues)
+
+
+
+class SourceFallbackTests(unittest.IsolatedAsyncioTestCase):
+    async def test_empty_provider_response_restores_last_good_snapshot(self):
+        station = {"name": "Saved Station", "streams": [{"source": "fixture", "url": "https://saved.example/live"}]}
+        with tempfile.TemporaryDirectory() as temporary:
+            save_snapshot(temporary, "fixture", [station])
+            stations, report = await load_source(
+                None, "fixture", {"enabled": True, "priority": 50},
+                AsyncMock(return_value=[]), temporary,
+            )
+            self.assertEqual("Saved Station", stations[0]["name"])
+            self.assertEqual("https://saved.example/live", stations[0]["streams"][0]["url"])
+            self.assertEqual("stale", report["status"])
+
+    async def test_provider_failure_restores_its_own_last_good_snapshot(self):
+        station = {"name": "Saved Station", "streams": [{"source": "fixture", "url": "https://saved.example/live", "sources": ["fixture"], "qualityScore": 50, "priority": 50, "bitrate": 0}]}
+        with tempfile.TemporaryDirectory() as temporary:
+            save_snapshot(temporary, "fixture", [station])
+            stations, report = await load_source(
+                None, "fixture", {"enabled": True, "priority": 80},
+                AsyncMock(side_effect=RuntimeError("upstream unavailable")), temporary,
+            )
+            self.assertEqual("Saved Station", stations[0]["name"])
+            self.assertEqual("stale", report["status"])
+            self.assertEqual(80, stations[0]["streams"][0]["priority"])
+            self.assertEqual(80, stations[0]["streams"][0]["qualityScore"])
+            self.assertEqual("last-good", report["snapshot"])
+
+
+if __name__ == "__main__":
+    unittest.main()

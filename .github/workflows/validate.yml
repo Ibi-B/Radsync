@@ -1,8 +1,11 @@
-name: Validate catalog
+name: Validate radio catalog
 
 on:
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   validate:
@@ -13,4 +16,5 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - run: python scripts/validate_catalog.py
+      - name: Run offline catalogue regression tests
+        run: python -m unittest discover -s tests -v
