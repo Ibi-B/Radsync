@@ -45,7 +45,7 @@ The refresh workflow can generate an observability-only continuity report compar
 
 Configure the repository variable `RADSYNC_PAGES_URL` with the base URL of the deployed GitHub Pages site (for example, the repository's published Pages URL). When the variable is absent, continuity comparison is explicitly skipped; catalogue validation and normal workflow behavior are unchanged.
 
-Reports are written to the private `radsync-state` branch under `identity-continuity/<catalogue-version>.json`. They are not included in the Pages artifact. The report counts retained, changed, removed, added, and ambiguous identities. Provider-qualified source IDs are a high-confidence comparison signal; metadata-only matches are low-confidence suggestions. Ambiguous matches are reported, not guessed.
+Reports are written to the `radsync-state` branch under `identity-continuity/<catalogue-version>.json`. They are not included in the Pages artifact. The report counts retained, changed, removed, added, and ambiguous identities. Provider-qualified source IDs are a high-confidence comparison signal; metadata-only matches are low-confidence suggestions. Ambiguous matches are reported, not guessed.
 
 This is observability only: it never rewrites `stationUuid`, changes aggregation, or changes the published app contract. Review the first report manually before treating continuity statistics as a release acceptance signal.
 
@@ -53,7 +53,7 @@ This is observability only: it never rewrites `stationUuid`, changes aggregation
 
 When canonical UUID assignment encounters separate aggregates with identical canonical metadata and identical provider/stream provenance, the refresh writes `state/diagnostics/identity-ambiguity.json` before failing closed. The report includes the catalogue version, a stable group fingerprint, canonical identity inputs, provisional classification, and whitelisted provider evidence (including M3U entry index/EXTINF where available). URL query strings and fragments are removed from diagnostic URLs to avoid retaining access tokens.
 
-The workflow uploads this report as a private GitHub Actions artifact (14-day retention) even when catalogue building fails, and persists it with the private `radsync-state` branch. It is never included in the Pages artifact or BeastED's published JSON contract. The report is observational: `likely_duplicate` is a clue for review, not an instruction to merge. No UUID inputs, reconciliation rules, or publication safeguards are relaxed. A successful build clears any stale ambiguity report.
+The workflow uploads this report as a GitHub Actions artifact (14-day retention) even when catalogue building fails, and persists it with the private `radsync-state` branch. It is not included in the Pages artifact or BeastED's published JSON contract. Note: this repository is public, so the state branch and Actions artifacts are not private; the diagnostic contains only whitelisted upstream metadata and URLs with query strings/fragments removed. The report is observational: `likely_duplicate` is a clue for review, not an instruction to merge. No UUID inputs, reconciliation rules, or publication safeguards are relaxed. A successful build clears any stale ambiguity report.
 
 ## Published BeastED contract
 
