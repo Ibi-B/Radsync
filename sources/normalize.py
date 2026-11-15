@@ -80,18 +80,24 @@ def normalize_record(record):
     """Return stable source-neutral fields while preserving original metadata."""
     if not isinstance(record, Mapping):
         return None
-    name = as_text(get_value(record, "name"))
-    url = as_text(get_value(record, "url"))
+    nested_station = record.get("station") if isinstance(record.get("station"), Mapping) else {}
+    nested_stream = record.get("stream") if isinstance(record.get("stream"), Mapping) else {}
+    name = as_text(get_value(record, "name") or get_value(nested_station, "name"))
+    url = as_text(get_value(record, "url") or get_value(nested_stream, "url"))
     if not name or not url:
         return None
+
+    def metadata(field, default=None):
+        return get_value(record, field) or get_value(nested_station, field) or default
+
     return {
         "name": name,
         "url": url,
-        "country": as_text(get_value(record, "country")),
-        "countryCode": as_text(get_value(record, "country_code")),
-        "language": as_text(get_value(record, "language")),
-        "tags": as_tags(get_value(record, "tags")),
-        "codec": as_text(get_value(record, "codec")),
-        "bitrate": get_value(record, "bitrate", 0),
-        "sourceStationId": as_text(get_value(record, "id")),
+        "country": as_text(metadata("country")),
+        "countryCode": as_text(metadata("country_code")),
+        "language": as_text(metadata("language")),
+        "tags": as_tags(metadata("tags")),
+        "codec": as_text(get_value(record, "codec") or get_value(nested_stream, "codec")),
+        "bitrate": get_value(record, "bitrate") or get_value(nested_stream, "bitrate", 0),
+        "sourceStationId": as_text(get_value(record, "id") or get_value(nested_station, "id")),
     }
