@@ -186,6 +186,33 @@ def stations_compatible(existing, incoming):
 
 def find_station_match(candidates, incoming):
     compatible = [station for station in candidates if stations_compatible(station, incoming)]
+    if not compatible:
+        return None
+
+    # Prefer an exact provider identity when one is available. A source may
+    # legitimately publish several formats/URLs for the same station under
+    # separate provider records; treating every same-name candidate as
+    # ambiguous prevents those variants from being reconciled. Do not use a
+    # stream URL as identity: URLs are variants, not station identifiers.
+    incoming_ids = {
+        (str(source), str(source_id))
+        for source, source_id in incoming.get("sourceIds", {}).items()
+        if source_id not in (None, "")
+    }
+    if incoming_ids:
+        exact_matches = [
+            station for station in compatible
+            if incoming_ids.intersection(
+                (str(source), str(source_id))
+                for source, source_id in station.get("sourceIds", {}).items()
+                if source_id not in (None, "")
+            )
+        ]
+        if len(exact_matches) == 1:
+            return exact_matches[0]
+        if len(exact_matches) > 1:
+            return None
+
     return compatible[0] if len(compatible) == 1 else None
 
 

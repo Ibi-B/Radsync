@@ -144,6 +144,36 @@ class CatalogAggregationTests(unittest.TestCase):
         for group in station["sourceGroups"]:
             self.assertTrue(all(by_index[i] == group["source"] for i in group["streamIndexes"]))
 
+    def test_exact_provider_identity_wins_when_multiple_compatible_candidates_exist(self):
+        first = make_station(
+            "0 N - 2000s on Radio", country="Germany", country_code="DE", language="german",
+            streams=[make_stream("radio-browser", "https://0n.example/live.aac", priority=90, source_station_id="rb-1")],
+        )
+        second = make_station(
+            "0 N - 2000s on Radio", country="Germany", country_code="DE", language="german",
+            streams=[make_stream("radio-browser", "https://0n.example/live.mp3", priority=90, source_station_id="rb-2")],
+        )
+        incoming = make_station(
+            "0 N - 2000s on Radio", country="Germany", country_code="DE", language="german",
+            streams=[make_stream("radio-browser", "https://0n.example/live.aac", priority=90, source_station_id="rb-1")],
+        )
+        self.assertIs(first, find_station_match([first, second], incoming))
+
+    def test_unmatched_provider_identity_does_not_guess_between_candidates(self):
+        first = make_station(
+            "0 N - 2000s on Radio", country="Germany", country_code="DE", language="german",
+            streams=[make_stream("radio-browser", "https://0n.example/live.aac", priority=90, source_station_id="rb-1")],
+        )
+        second = make_station(
+            "0 N - 2000s on Radio", country="Germany", country_code="DE", language="german",
+            streams=[make_stream("radio-browser", "https://0n.example/live.mp3", priority=90, source_station_id="rb-2")],
+        )
+        incoming = make_station(
+            "0 N - 2000s on Radio", country="Germany", country_code="DE", language="german",
+            streams=[make_stream("radio-browser", "https://0n.example/live.other", priority=90, source_station_id="rb-3")],
+        )
+        self.assertIsNone(find_station_match([first, second], incoming))
+
 
 if __name__ == "__main__":
     unittest.main()
