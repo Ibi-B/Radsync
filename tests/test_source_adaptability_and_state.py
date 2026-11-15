@@ -1,10 +1,13 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import AsyncMock
 from pathlib import Path
 
 from sources.normalize import as_records, get_value, normalize_record, as_tags
 from sources.state import load_snapshot, save_snapshot, validate_state
+from sources.m3u import parse_m3u
+from scripts.build_radio_catalog import load_source
 
 
 class SourceNormalizationTests(unittest.TestCase):
@@ -37,6 +40,17 @@ class SourceNormalizationTests(unittest.TestCase):
         self.assertEqual(["Rock", "Pop"], as_tags([{"title": "Rock"}, "Pop"]))
 
 
+class PlaylistFormatTests(unittest.TestCase):
+    def test_m3u_preserves_extended_metadata_and_handles_bom(self):
+        payload = '\ufeff#EXTM3U\\n#EXTINF:-1 tvg-id="station.one" tvg-country="GB" tvg-language="English" group-title="Jazz",Example Radio\\nhttps://radio.example/live\\n'
+        records = parse_m3u(payload)
+        self.assertEqual(1, len(records))
+        self.assertEqual("Example Radio", records[0]["name"])
+        self.assertEqual("station.one", records[0]["station_id"])
+        self.assertEqual(["Jazz"], records[0]["genres"])
+        self.assertEqual("GB", records[0]["country"])
+
+
 class ProviderSnapshotTests(unittest.TestCase):
     def test_snapshot_round_trip_and_validation(self):
         station = {"name": "Example", "streams": [{"url": "https://a.example/live"}]}
@@ -62,6 +76,21 @@ class ProviderSnapshotTests(unittest.TestCase):
             valid, issues = validate_state(temporary)
             self.assertFalse(valid)
             self.assertTrue(issues)
+
+
+
+class SourceFallbackTests(unittest.IsolatedAsyncioTestCase):
+    async def test_provider_failure_restores_its_own_last_good_snapshot(self):
+        station = {"name": "Saved Station", "streams": [{"source": "fixture", "url": "https://saved.example/live", "sources": ["fixture"], "qualityScore": 50, "priority": 50, "bitrate": 0}]}
+        with tempfile.TemporaryDirectory() as temporary:
+            save_snapshot(temporary, "fixture", [station])
+            stations, report = await load_source(
+                None, "fixture", {"enabled": True, "priority": 50},
+                AsyncMock(side_effect=RuntimeError("upstream unavailable")), temporary,
+            )
+            self.assertEqual([station], stations)
+            self.assertEqual("stale", report["status"])
+            self.assertEqual("last-good", report["snapshot"])
 
 
 if __name__ == "__main__":
