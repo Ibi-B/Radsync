@@ -74,6 +74,9 @@ def validate_catalog(output=OUTPUT):
                     if not isinstance(index, int) or not 0 <= index < len(streams):
                         print(f"Invalid source-group stream index for station {station_id}")
                         return 1
+                    if index in grouped_indexes:
+                        print(f"Stream index is assigned to multiple source groups for station {station_id}")
+                        return 1
                     if source not in streams[index].get("sources", [streams[index].get("source")]):
                         print(f"Source group does not match stream provenance for station {station_id}")
                         return 1
