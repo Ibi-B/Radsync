@@ -8,6 +8,7 @@ import asyncio
 import json
 import re
 import unicodedata
+from urllib.parse import urlsplit
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -36,8 +37,35 @@ def normalize_name(value: str):
     return " ".join(value.split())
 
 
+def valid_stream_url(value):
+    try:
+        parsed = urlsplit(str(value or "").strip())
+        return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+    except ValueError:
+        return False
+
+
+def stream_sort_key(stream):
+    return (float(stream.get("qualityScore", 0)), int(stream.get("priority", 0)),
+            int(stream.get("bitrate", 0) or 0), str(stream.get("url", "")))
+
+
+def refresh_station_sources(station):
+    station["streams"].sort(key=stream_sort_key, reverse=True)
+    station["defaultStreamIndex"] = 0 if station["streams"] else None
+    station["defaultSource"] = station["streams"][0]["source"] if station["streams"] else None
+    grouped = {}
+    for index, stream in enumerate(station["streams"]):
+        grouped.setdefault(stream["source"], []).append(index)
+    station["sources"] = list(grouped)
+    station["sourceGroups"] = [
+        {"source": source, "streamIndexes": indexes}
+        for source, indexes in sorted(grouped.items())
+    ]
+
+
 def make_stream(source, url, codec="", bitrate=0, priority=50):
-    quality = priority + min(bitrate / 10.0, 20.0)
+    quality = priority + min((bitrate or 0) / 10.0, 20.0)
     return {
         "source": source,
         "url": url,
@@ -50,15 +78,11 @@ def make_stream(source, url, codec="", bitrate=0, priority=50):
 
 
 def make_station(name, country="", country_code="", language="", tags=None, streams=None):
-    streams = sorted(streams or [], key=lambda item: item["qualityScore"], reverse=True)
-    stable_id = next(
-        (stream.get("stationUuid") for stream in streams if stream.get("stationUuid")),
-        None,
-    )
-    station_id = stable_id or f"radsync:{slug(name)}"
-
-    return {
-        "stationUuid": station_id,
+    streams = [stream for stream in (streams or []) if valid_stream_url(stream.get("url"))]
+    streams.sort(key=stream_sort_key, reverse=True)
+    station = {
+        "stationUuid": f"radsync:{slug(name)}",
+        "sourceIds": {},
         "name": name.strip(),
         "normalizedName": normalize_name(name),
         "country": country,
@@ -67,10 +91,15 @@ def make_station(name, country="", country_code="", language="", tags=None, stre
         "tags": tags or [],
         "streams": streams,
         "defaultStreamIndex": 0,
+        "defaultSource": streams[0]["source"] if streams else None,
+        "sources": [],
+        "sourceGroups": [],
         "status": "unknown",
         "lastCheckedAt": None,
         "failureCount": 0,
     }
+    refresh_station_sources(station)
+    return station
 
 
 def merge_station(target, incoming):
@@ -89,7 +118,23 @@ def merge_station(target, incoming):
         if tag not in target["tags"]:
             target["tags"].append(tag)
 
-    target["streams"].sort(key=lambda item: item["qualityScore"], reverse=True)
+    refresh_station_sources(target)
+
+
+def stations_compatible(existing, incoming):
+    for field in ("countryCode", "language"):
+        left = str(existing.get(field) or "").strip().casefold()
+        right = str(incoming.get(field) or "").strip().casefold()
+        if left and right and left != right:
+            return False
+    left = str(existing.get("country") or "").strip().casefold()
+    right = str(incoming.get("country") or "").strip().casefold()
+    return not (left and right and left != right)
+
+
+def find_station_match(candidates, incoming):
+    compatible = [station for station in candidates if stations_compatible(station, incoming)]
+    return compatible[0] if len(compatible) == 1 else None
 
 
 async def load_source(session, source_id, config, loader):
