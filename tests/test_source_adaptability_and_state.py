@@ -36,6 +36,16 @@ class SourceNormalizationTests(unittest.TestCase):
         self.assertEqual(["Jazz", "News"], record["tags"])
         self.assertEqual("source-123", record["sourceStationId"])
 
+    def test_nested_station_and_stream_objects_are_supported(self):
+        record = normalize_record({
+            "station": {"title": "Nested Radio", "countryCode": "SE", "stationUuid": "nested-1"},
+            "stream": {"streamUrl": "https://nested.example/live", "codec": "AAC", "bitrate": 192},
+        })
+        self.assertEqual("Nested Radio", record["name"])
+        self.assertEqual("https://nested.example/live", record["url"])
+        self.assertEqual("SE", record["countryCode"])
+        self.assertEqual("nested-1", record["sourceStationId"])
+
     def test_tags_accept_strings_lists_and_objects(self):
         self.assertEqual(["Jazz", "News"], as_tags("Jazz; News, jazz"))
         self.assertEqual(["Rock", "Pop"], as_tags([{"title": "Rock"}, "Pop"]))
