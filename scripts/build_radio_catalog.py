@@ -362,10 +362,22 @@ async def main(state_dir=Path("state")):
         channels = as_records(raw, ("channels", "data", "results", "items"))
         result = []
         for channel in channels:
-            playlist_payload = channel.get("playlists") or channel.get("streams") or channel.get("urls") or []
-            playlists = as_records(playlist_payload) if not isinstance(playlist_payload, list) or (playlist_payload and isinstance(playlist_payload[0], dict)) else [
-                {"url": item} for item in playlist_payload if isinstance(item, str)
-            ]
+            playlist_payload = (
+                channel.get("playlists") or channel.get("streams")
+                or channel.get("urls") or channel.get("playlist") or []
+            )
+            if isinstance(playlist_payload, dict):
+                playlists = [
+                    {"format": key, "url": value}
+                    for key, value in playlist_payload.items()
+                    if isinstance(value, str)
+                ] or as_records(playlist_payload)
+            elif isinstance(playlist_payload, list) and (
+                not playlist_payload or isinstance(playlist_payload[0], str)
+            ):
+                playlists = [{"url": item} for item in playlist_payload if isinstance(item, str)]
+            else:
+                playlists = as_records(playlist_payload)
             streams = [
                 make_stream("somafm", get_value(item, "url", ""), get_value(item, "codec", ""),
                             get_value(item, "bitrate", 0), priority, get_value(channel, "id"))
