@@ -399,13 +399,13 @@ async def main(state_dir=Path("state")):
             load_source(session, "radio-browser", config["radio_browser"], load_radio_browser, state_dir),
             load_source(session, "airwavedb", config["airwavedb"], load_airwavedb, state_dir),
             load_source(session, "icecast", config["icecast"], load_icecast, state_dir),
-            load_source(session, "iptv-org-radio", config["iptv_org_radio"], lambda s, c, p: load_m3u(s, "iptv-org-radio", c["url"], p)),
-            load_source(session, "iptv-org-streams", config["iptv_org_streams"], load_iptv_streams),
-            load_source(session, "pulham-hq", config["pulham_hq"], lambda s, c, p: load_m3u(s, "pulham-hq", c["url"], p)),
+            load_source(session, "iptv-org-radio", config["iptv_org_radio"], lambda s, c, p: load_m3u(s, "iptv-org-radio", c["url"], p), state_dir),
+            load_source(session, "iptv-org-streams", config["iptv_org_streams"], load_iptv_streams, state_dir),
+            load_source(session, "pulham-hq", config["pulham_hq"], lambda s, c, p: load_m3u(s, "pulham-hq", c["url"], p), state_dir),
             load_source(session, "iprd", config["iprd"], lambda s, c, p: load_repo_playlists(s, "iprd", c, p), state_dir),
-            load_source(session, "alon-drilich", config["alon_drilich"], lambda s, c, p: load_repo_playlists(s, "alon-drilich", c, p)),
+            load_source(session, "alon-drilich", config["alon_drilich"], lambda s, c, p: load_repo_playlists(s, "alon-drilich", c, p), state_dir),
             load_source(session, "somafm", config["somafm"], load_somafm, state_dir),
-            load_source(session, "bbc-radio", config["bbc_radio"], lambda s, c, p: load_m3u(s, "bbc-radio", c["url"], p)),
+            load_source(session, "bbc-radio", config["bbc_radio"], lambda s, c, p: load_m3u(s, "bbc-radio", c["url"], p), state_dir),
         )
 
     stations_by_name = {}
