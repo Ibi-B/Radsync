@@ -48,6 +48,38 @@ jobs:
       - name: Run regression tests
         run: python -m unittest discover -s tests -v
 
+      - name: Capture previous published station index
+        id: previous_catalogue
+        env:
+          PAGES_URL: ${{ vars.RADSYNC_PAGES_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p continuity
+          if [ -z "${PAGES_URL:-}" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "RADSYNC_PAGES_URL is not configured; identity continuity report will be skipped."
+            exit 0
+          fi
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from urllib.request import urlopen
+
+          base = os.environ["PAGES_URL"].rstrip("/")
+          with urlopen(base + "/current/master-index.json", timeout=30) as response:
+              pointer = json.load(response)
+          master_path = pointer["masterIndex"].lstrip("/")
+          with urlopen(base + "/" + master_path, timeout=30) as response:
+              master = json.load(response)
+          stations_path = master["stationsUrl"].lstrip("/")
+          with urlopen(base + "/" + pointer["masterIndex"].rsplit("/", 1)[0] + "/" + stations_path, timeout=30) as response:
+              stations = json.load(response)
+          Path("continuity/previous-stations.json").write_text(json.dumps(stations), encoding="utf-8")
+          Path("continuity/previous-version.txt").write_text(str(pointer["version"]), encoding="utf-8")
+          PY
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
       - name: Build catalogue using fresh or last-good provider data
         id: build_catalogue
         run: python -m scripts.build_radio_catalog --state-dir state
@@ -55,6 +87,20 @@ jobs:
       - name: Validate published catalogue
         if: ${{ steps.build_catalogue.outcome == 'success' }}
         run: python scripts/validate_catalog.py
+
+      - name: Generate station identity continuity report
+        if: ${{ steps.build_catalogue.outcome == 'success' && steps.previous_catalogue.outputs.available == 'true' }}
+        run: |
+          set -euo pipefail
+          CURRENT_VERSION="$(python -c 'import json; from pathlib import Path; p=json.loads(Path("output/current/master-index.json").read_text()); print(p["version"])')"
+          CURRENT_MASTER="$(python -c 'import json; from pathlib import Path; p=json.loads(Path("output/current/master-index.json").read_text()); print(p["masterIndex"])')"
+          CURRENT_STATIONS="$(python -c 'import json; from pathlib import Path; p=json.loads(Path("output/$CURRENT_MASTER").read_text()); print("output/" + "$CURRENT_MASTER".rsplit("/", 1)[0] + "/" + p["stationsUrl"])')"
+          python -m scripts.station_identity_continuity \
+            --previous continuity/previous-stations.json \
+            --current "$CURRENT_STATIONS" \
+            --output state/identity-continuity/"$CURRENT_VERSION".json
+          python -c 'import json,sys; p=json.load(open(sys.argv[1])); print(json.dumps({k:p[k] for k in ("previousVersion","currentVersion","retained","changed","removed","added","ambiguousPrevious","ambiguousCurrent")}, indent=2))' \
+            state/identity-continuity/"$CURRENT_VERSION".json
 
       - name: Persist provider snapshots
         if: ${{ always() && steps.state_checkout.outcome == 'success' && steps.validate_state.outcome == 'success' }}
