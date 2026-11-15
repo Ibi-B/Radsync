@@ -93,7 +93,8 @@ def validate_catalog(output=OUTPUT):
         report = json.loads(report_path.read_text(encoding="utf-8"))
         successful = [
             source for source in report.get("sources", [])
-            if source.get("status") == "ok" and source.get("stationCount", 0) > 0
+            if source.get("status") in ("ok", "stale") and source.get("stationCount", 0) > 0
+            and (source.get("status") != "stale" or source.get("snapshot") == "last-good")
         ]
         if not successful:
             print("No source produced stations")
