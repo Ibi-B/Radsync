@@ -22,7 +22,7 @@ from sources.iptv_org_streams import fetch_streams
 from sources.somafm import fetch_channels
 from sources.github_playlists import fetch_repository_playlists
 from sources.m3u import parse_m3u
-from sources.normalize import as_records, get_value, as_tags, normalize_record
+from sources.normalize import as_records, get_value, as_text, as_tags, normalize_record
 from sources.state import load_snapshot, save_snapshot
 
 OUTPUT = Path("output")
@@ -299,10 +299,10 @@ async def main(state_dir=Path("state")):
             if streams:
                 streams[0]["stationUuid"] = station_id
                 result.append(make_station(
-                    get_value(station, "name", ""),
-                    get_value(station, "country", ""),
-                    get_value(station, "country_code", ""),
-                    get_value(station, "language", ""),
+                    as_text(get_value(station, "name", "")),
+                    as_text(get_value(station, "country", "")),
+                    as_text(get_value(station, "country_code", "")),
+                    as_text(get_value(station, "language", "")),
                     as_tags(get_value(station, "tags") or []),
                     streams,
                 ))
@@ -373,8 +373,8 @@ async def main(state_dir=Path("state")):
             ]
             if streams:
                 result.append(make_station(
-                    channel.get("title") or channel.get("name") or "",
-                    tags=[channel.get("genre", "")] if channel.get("genre") else [],
+                    as_text(channel.get("title") or channel.get("name") or ""),
+                    tags=as_tags(channel.get("genre", "")),
                     streams=streams,
                 ))
         return result
