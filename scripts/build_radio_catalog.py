@@ -326,8 +326,16 @@ async def main(state_dir=Path("state")):
         return [
             make_station(
                 item["name"],
-                tags=[source_id],
-                streams=[make_stream(source_id, item["stream_url"], priority=priority)],
+                country=item.get("country", ""),
+                country_code=item.get("attributes", {}).get("tvg-country-code", ""),
+                language=item.get("language", ""),
+                tags=item.get("genres") or [source_id],
+                streams=[make_stream(
+                    source_id, item["stream_url"],
+                    item.get("attributes", {}).get("tvg-audio", ""),
+                    priority=priority,
+                    source_station_id=item.get("station_id"),
+                )],
             )
             for item in raw
         ]
