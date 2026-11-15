@@ -39,6 +39,16 @@ The scheduled/manual refresh workflow checks out a dedicated `radsync-state` bra
 
 The current release is not advanced if no usable stations can be assembled. The previous Pages deployment therefore remains available when the complete refresh fails.
 
+## Station identity continuity
+
+The refresh workflow can generate an observability-only continuity report comparing the previous deployed station index with the newly built candidate catalogue.
+
+Configure the repository variable `RADSYNC_PAGES_URL` with the base URL of the deployed GitHub Pages site (for example, the repository's published Pages URL). When the variable is absent, continuity comparison is explicitly skipped; catalogue validation and normal workflow behavior are unchanged.
+
+Reports are written to the private `radsync-state` branch under `identity-continuity/<catalogue-version>.json`. They are not included in the Pages artifact. The report counts retained, changed, removed, added, and ambiguous identities. Provider-qualified source IDs are a high-confidence comparison signal; metadata-only matches are low-confidence suggestions. Ambiguous matches are reported, not guessed.
+
+This is observability only: it never rewrites `stationUuid`, changes aggregation, or changes the published app contract. Review the first report manually before treating continuity statistics as a release acceptance signal.
+
 ## Published BeastED contract
 
 `output/current/master-index.json` points to an immutable versioned release. The versioned master index exposes `stationsUrl`, station/stream counts and genre/country/language group indexes.
