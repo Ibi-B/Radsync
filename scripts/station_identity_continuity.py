@@ -55,10 +55,21 @@ def build_continuity_report(previous_stations, current_stations, previous_versio
 
     candidates = []
     for old in previous_remaining:
+        exact = []
         for new in current_remaining:
-            reason = _candidate_reason(old, new)
-            if reason:
+            shared = _provider_ids(old) & _provider_ids(new)
+            if shared:
+                exact.append((new, ("provider-id", "high", sorted(shared))))
+        if exact:
+            for new, reason in exact:
                 candidates.append((old, new, reason))
+            continue
+        metadata = []
+        for new in current_remaining:
+            if _name_key(old) and _name_key(old) == _name_key(new) and _metadata_compatible(old, new):
+                metadata.append((new, ("metadata-match", "low", [])))
+        for new, reason in metadata:
+            candidates.append((old, new, reason))
 
     old_degree = defaultdict(int)
     new_degree = defaultdict(int)
@@ -71,7 +82,8 @@ def build_continuity_report(previous_stations, current_stations, previous_versio
     matched_new = set()
     for old, new, (reason, confidence, shared) in candidates:
         old_id, new_id = old["stationUuid"], new["stationUuid"]
-        if old_degree[old_id] == 1 and new_degree[new_id] == 1:
+        uniquely_matched = old_degree[old_id] == 1 and new_degree[new_id] == 1
+        if uniquely_matched and confidence == "high":
             changes.append({
                 "previousStationUuid": old_id,
                 "currentStationUuid": new_id,
@@ -80,7 +92,20 @@ def build_continuity_report(previous_stations, current_stations, previous_versio
                 "reason": reason,
                 "confidence": confidence,
                 "sharedProviderIds": shared,
-                "automaticMatch": reason == "provider-id" and confidence == "high",
+                "automaticMatch": True,
+            })
+            matched_old.add(old_id)
+            matched_new.add(new_id)
+        elif uniquely_matched and confidence == "low":
+            changes.append({
+                "previousStationUuid": old_id,
+                "currentStationUuid": new_id,
+                "previousName": old.get("name"),
+                "currentName": new.get("name"),
+                "reason": reason,
+                "confidence": confidence,
+                "sharedProviderIds": shared,
+                "automaticMatch": False,
             })
             matched_old.add(old_id)
             matched_new.add(new_id)
