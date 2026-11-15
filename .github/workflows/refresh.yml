@@ -60,7 +60,7 @@ jobs:
             echo "RADSYNC_PAGES_URL is not configured; identity continuity report will be skipped."
             exit 0
           fi
-          python - <<'PY'
+          if python - <<'PY'
           import json
           import os
           from pathlib import Path
@@ -76,10 +76,17 @@ jobs:
           stations_path = master["stationsUrl"].lstrip("/")
           with urlopen(base + "/" + version_prefix + "/" + stations_path, timeout=30) as response:
               stations = json.load(response)
+          if not isinstance(stations.get("stations"), list) or not stations["stations"]:
+              raise ValueError("Previous station index is empty or invalid")
           Path("continuity/previous-stations.json").write_text(json.dumps(stations), encoding="utf-8")
           Path("continuity/previous-version.txt").write_text(str(pointer["version"]), encoding="utf-8")
           PY
-          echo "available=true" >> "$GITHUB_OUTPUT"
+          then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Could not capture the previous catalogue; continuity reporting is skipped for this run."
+          fi
 
       - name: Build catalogue using fresh or last-good provider data
         id: build_catalogue
