@@ -64,11 +64,12 @@ def refresh_station_sources(station):
     ]
 
 
-def make_stream(source, url, codec="", bitrate=0, priority=50):
+def make_stream(source, url, codec="", bitrate=0, priority=50, source_station_id=None):
     quality = priority + min((bitrate or 0) / 10.0, 20.0)
     return {
         "source": source,
-        "url": url,
+        "sourceStationId": source_station_id,
+        "url": str(url or "").strip(),
         "codec": codec,
         "bitrate": bitrate,
         "priority": priority,
@@ -110,6 +111,7 @@ def merge_station(target, incoming):
             target["streams"].append(stream)
             existing_urls.add(stream["url"])
 
+    target.setdefault("sourceIds", {}).update(incoming.get("sourceIds", {}))
     target["country"] = target["country"] or incoming["country"]
     target["countryCode"] = target["countryCode"] or incoming["countryCode"]
     target["language"] = target["language"] or incoming["language"]
@@ -193,6 +195,7 @@ async def main():
                     item.get("codec") or "",
                     item.get("bitrate") or 0,
                     priority,
+                    item.get("stationuuid") or item.get("changeuuid"),
                 )],
             )
             for item in raw
@@ -220,6 +223,7 @@ async def main():
                     stream.get("codec") or "",
                     stream.get("bitrate") or 0,
                     priority,
+                    station_id,
                 )
                 for stream in streams_by_station.get(station_id, [])
             ]
@@ -246,11 +250,10 @@ async def main():
             for item in raw
         ]
 
-    async def load_m3u(source_id, url, priority):
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120)) as session:
-            async with session.get(url, headers={"User-Agent": "Radsync/1.0"}) as response:
-                response.raise_for_status()
-                raw = parse_m3u(await response.text())
+    async def load_m3u(session, source_id, url, priority):
+        async with session.get(url, headers={"User-Agent": "Radsync/1.0"}) as response:
+            response.raise_for_status()
+            raw = parse_m3u(await response.text())
         return [
             make_station(
                 item["name"],
@@ -277,22 +280,23 @@ async def main():
 
     async def load_somafm(session, source_config, priority):
         raw = await fetch_channels(session, source_config["url"])
-        channels = raw.get("channels", raw if isinstance(raw, list) else [])
-        return [
-            make_station(
-                channel.get("title") or channel.get("name") or "",
-                tags=[channel.get("genre", "")],
-                streams=[make_stream(
-                    "somafm",
-                    (channel.get("playlists") or [{}])[0].get("url", ""),
-                    priority=priority,
-                )],
-            )
-            for channel in channels
-            if channel.get("playlists")
-        ]
+        channels = raw if isinstance(raw, list) else raw.get("channels", [])
+        result = []
+        for channel in channels:
+            streams = [
+                make_stream("somafm", item.get("url", ""), item.get("format", ""),
+                            item.get("bitrate", 0), priority, channel.get("id"))
+                for item in (channel.get("playlists") or []) if item.get("url")
+            ]
+            if streams:
+                result.append(make_station(
+                    channel.get("title") or channel.get("name") or "",
+                    tags=[channel.get("genre", "")] if channel.get("genre") else [],
+                    streams=streams,
+                ))
+        return result
 
-    async def load_repo_playlists(session, source_config, priority):
+    async def load_repo_playlists(session, source_id, source_config, priority):
         raw = await fetch_repository_playlists(
             session,
             source_config["repoApiUrl"],
@@ -302,7 +306,7 @@ async def main():
             make_station(
                 item["name"],
                 tags=[],
-                streams=[make_stream("repo-playlists", item["stream_url"], priority=priority)],
+                streams=[make_stream(source_id, item["stream_url"], priority=priority)],
             )
             for item in raw
         ]
@@ -312,13 +316,13 @@ async def main():
             load_source(session, "radio-browser", config["radio_browser"], load_radio_browser),
             load_source(session, "airwavedb", config["airwavedb"], load_airwavedb),
             load_source(session, "icecast", config["icecast"], load_icecast),
-            load_source(session, "iptv-org-radio", config["iptv_org_radio"], lambda s, c, p: load_m3u("iptv-org-radio", c["url"], p)),
+            load_source(session, "iptv-org-radio", config["iptv_org_radio"], lambda s, c, p: load_m3u(s, "iptv-org-radio", c["url"], p)),
             load_source(session, "iptv-org-streams", config["iptv_org_streams"], load_iptv_streams),
-            load_source(session, "pulham-hq", config["pulham_hq"], lambda s, c, p: load_m3u("pulham-hq", c["url"], p)),
-            load_source(session, "iprd", config["iprd"], load_repo_playlists),
-            load_source(session, "alon-drilich", config["alon_drilich"], load_repo_playlists),
+            load_source(session, "pulham-hq", config["pulham_hq"], lambda s, c, p: load_m3u(s, "pulham-hq", c["url"], p)),
+            load_source(session, "iprd", config["iprd"], lambda s, c, p: load_repo_playlists(s, "iprd", c, p)),
+            load_source(session, "alon-drilich", config["alon_drilich"], lambda s, c, p: load_repo_playlists(s, "alon-drilich", c, p)),
             load_source(session, "somafm", config["somafm"], load_somafm),
-            load_source(session, "bbc-radio", config["bbc_radio"], lambda s, c, p: load_m3u("bbc-radio", c["url"], p)),
+            load_source(session, "bbc-radio", config["bbc_radio"], lambda s, c, p: load_m3u(s, "bbc-radio", c["url"], p)),
         )
 
     stations_by_name = {}
@@ -327,15 +331,16 @@ async def main():
     for source_stations, report in results:
         source_report.append(report)
         for station in source_stations:
-            if not station["name"] or not station["streams"]:
+            if not station["name"] or not station["streams"] or not station["normalizedName"]:
                 continue
-            key = station["normalizedName"]
-            if key in stations_by_name:
-                merge_station(stations_by_name[key], station)
+            candidates = stations_by_name.setdefault(station["normalizedName"], [])
+            match = find_station_match(candidates, station)
+            if match is not None:
+                merge_station(match, station)
             else:
-                stations_by_name[key] = station
+                candidates.append(station)
 
-    stations = list(stations_by_name.values())
+    stations = [station for candidates in stations_by_name.values() for station in candidates]
 
     def write_group(directory, groups):
         items = []
