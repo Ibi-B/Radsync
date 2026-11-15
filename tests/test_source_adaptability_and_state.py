@@ -100,6 +100,17 @@ class ProviderSnapshotTests(unittest.TestCase):
 
 
 class SourceFallbackTests(unittest.IsolatedAsyncioTestCase):
+    async def test_empty_provider_response_restores_last_good_snapshot(self):
+        station = {"name": "Saved Station", "streams": [{"source": "fixture", "url": "https://saved.example/live"}]}
+        with tempfile.TemporaryDirectory() as temporary:
+            save_snapshot(temporary, "fixture", [station])
+            stations, report = await load_source(
+                None, "fixture", {"enabled": True, "priority": 50},
+                AsyncMock(return_value=[]), temporary,
+            )
+            self.assertEqual([station], stations)
+            self.assertEqual("stale", report["status"])
+
     async def test_provider_failure_restores_its_own_last_good_snapshot(self):
         station = {"name": "Saved Station", "streams": [{"source": "fixture", "url": "https://saved.example/live", "sources": ["fixture"], "qualityScore": 50, "priority": 50, "bitrate": 0}]}
         with tempfile.TemporaryDirectory() as temporary:
