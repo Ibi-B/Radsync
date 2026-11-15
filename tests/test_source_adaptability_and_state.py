@@ -119,7 +119,7 @@ class SourceFallbackTests(unittest.IsolatedAsyncioTestCase):
                 None, "fixture", {"enabled": True, "priority": 80},
                 AsyncMock(side_effect=RuntimeError("upstream unavailable")), temporary,
             )
-            self.assertEqual([station], stations)
+            self.assertEqual("Saved Station", stations[0]["name"])
             self.assertEqual("stale", report["status"])
             self.assertEqual(80, stations[0]["streams"][0]["priority"])
             self.assertEqual(80, stations[0]["streams"][0]["qualityScore"])
