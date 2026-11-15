@@ -1,49 +1,62 @@
 # Radsync
 
-Radsync is the radio catalogue aggregation and publication service for BeastED. It performs provider collection, normalization, station reconciliation, stream ranking and genre/country/language grouping outside the app. BeastED consumes the published static JSON catalogue; playback remains in BeastED.
+Radsync is BeastED's independent radio catalogue aggregation and publication service. It performs provider collection, format adaptation, station reconciliation, source provenance, stream ranking, and genre/country/language grouping outside the app. BeastED consumes a stable, versioned JSON contract; playback and radio UI remain in BeastED.
 
-## Core behavior
+## Core data rules
 
-- A station is a canonical catalogue record, not a single stream URL.
-- Duplicate station entries from different providers are reconciled when their names and available country/language metadata are compatible.
-- Conflicting country or language identities are kept separate rather than being merged by name alone.
-- Every distinct HTTP(S) stream URL is retained as a selectable variant.
-- If multiple providers advertise the same URL, the URL is stored once while its provider provenance is retained.
-- Provider alternatives are exposed through `sources` and `sourceGroups`; each source group points to stream indexes in the station's `streams` array.
-- Streams are ranked by configured provider priority plus a bounded bitrate contribution. The highest-ranked stream is at index `0`, with `defaultStreamIndex: 0` and `defaultSource` identifying the automatic default.
-- Invalid or empty stream URLs are excluded from published stations.
-- Source failures are isolated and reported; a successful provider is not blocked by another provider's failure.
+- One canonical station may contain many selectable stream variants.
+- Duplicate station entries are reconciled only when their available country/language identity is compatible.
+- Every distinct valid HTTP(S) stream URL is retained. When providers publish the same URL, it is stored once while all provider provenance is retained.
+- `sources` and `sourceGroups` expose the providers behind the variants; source-group indexes refer to `streams`.
+- The highest-ranked stream is at index zero and is selected by `defaultStreamIndex: 0`. `defaultSource` identifies its provider.
+- Ranking currently uses configured provider priority plus a bounded bitrate contribution. It does not yet claim that a stream is live; availability-aware ranking is a separate future stage.
+- Empty or invalid source responses cannot overwrite that provider's last-good snapshot.
 
-## Published data contract
+## Provider adaptability
 
-The `current/master-index.json` pointer identifies an immutable versioned release:
+Provider responses are treated as upstream input, not as the app's data contract. Shared helpers in `sources/normalize.py` recognize common variations in:
 
-- `masterIndex`: relative path to the version's `master-index.json`
-- `version`: release identifier
+- response envelopes: arrays, `data`, `results`, `items`, `stations`, `channels`, and keyed record maps
+- station names and IDs: `name`, `title`, `stationName`, `station_name`, UUID and ID variants
+- stream URLs: `url`, `streamUrl`, `stream_url`, `listen_url`, `url_resolved`, and related variants
+- country, language, genre/tag, codec, and bitrate field names
+- tags represented as comma/semicolon-delimited strings, arrays, or small objects
 
-The versioned master index exposes:
+M3U/M3U8 parsing retains common EXTINF metadata (station IDs, country, language, genre and logo). Icecast XML parsing tolerates XML namespaces and alternate element names. GitHub playlist discovery tolerates common tree response wrappers.
 
-- `stationsUrl`: the complete normalized station catalogue
-- `stationCount` and `streamCount`
-- `groups.genres`, `groups.countries`, and `groups.languages`: indexes and group-file locations
+When a provider changes its format beyond these known variants, update its adapter and add a fixture/regression test there. Do not change the BeastED output contract just to mirror an upstream API. Unknown or ambiguous data should be rejected or reported, not silently misclassified.
 
-Each station includes its canonical `stationUuid`, source-specific IDs where available, metadata, `streams`, `defaultStreamIndex`, `defaultSource`, and source-group index references. A client can render one station once, show the provider groups as alternatives, and play the default stream without discarding the alternatives.
+## Durable provider state
 
-## Sources
+The scheduled/manual refresh workflow checks out a dedicated `radsync-state` branch into a separate `state/` directory. Each enabled provider has its own versioned snapshot under `state/sources/`.
 
-Sources and their priority are configured in `config/sources.json`. Priority is an explicit ranking input, not a live uptime guarantee. Stream status is currently reported as unknown unless a later availability-checking stage is added.
+- Successful, non-empty provider fetches atomically replace only that provider's snapshot.
+- A failed or empty provider response reuses only that provider's own last-good snapshot and marks its source report entry `stale`.
+- One provider's failure cannot overwrite another provider's snapshot.
+- Corrupt or unsupported state is rejected before use.
+- The workflow persists snapshots to `radsync-state` with a narrowly scoped `contents: write` permission.
+- Snapshot state is not included in the GitHub Pages artifact; only the public catalogue is deployed.
+
+The current release is not advanced if no usable stations can be assembled. The previous Pages deployment therefore remains available when the complete refresh fails.
+
+## Published BeastED contract
+
+`output/current/master-index.json` points to an immutable versioned release. The versioned master index exposes `stationsUrl`, station/stream counts and genre/country/language group indexes.
+
+Each station contains canonical identity, provider IDs, descriptive metadata, `streams`, `sources`, `sourceGroups`, `defaultStreamIndex`, and `defaultSource`. BeastED should display one station record, show its source groups as alternatives, and play the default stream unless the user chooses another source.
 
 ## Local checks
 
 ```bash
 python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
-python scripts/build_radio_catalog.py
+python -m sources.state_cli validate --state-dir state
+python scripts/build_radio_catalog.py --state-dir state
 python scripts/validate_catalog.py
 ```
 
-The pull-request validation workflow runs the offline regression suite. The scheduled/manual refresh workflow builds a fresh catalogue, validates the generated release, and deploys it to GitHub Pages.
+Pull-request validation runs offline regression tests. Scheduled/manual refresh restores provider snapshots, validates state, builds and validates the public catalogue, persists updated provider snapshots, and deploys the Pages artifact.
 
-## Important limitation
+## Known future enhancement
 
-Radsync currently isolates failed sources and refuses to replace the current pointer when the build produces no stations. It does not yet persist a last-good snapshot per provider across workflow runs. That durability mechanism should be added before treating provider outages as fully recoverable.
+Live stream probing and health-aware default selection are not yet implemented. Until then, “best” means highest configured ranking score, not proven currently playable. The existing alternatives remain available to BeastED regardless of the default.
