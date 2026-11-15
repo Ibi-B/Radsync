@@ -8,6 +8,7 @@ from sources.normalize import as_records, get_value, normalize_record, as_tags
 from sources.state import load_snapshot, save_snapshot, validate_state
 from sources.m3u import parse_m3u
 from scripts.build_radio_catalog import load_source
+from sources.icecast import parse_directory
 
 
 class SourceNormalizationTests(unittest.TestCase):
@@ -42,13 +43,22 @@ class SourceNormalizationTests(unittest.TestCase):
 
 class PlaylistFormatTests(unittest.TestCase):
     def test_m3u_preserves_extended_metadata_and_handles_bom(self):
-        payload = '\ufeff#EXTM3U\\n#EXTINF:-1 tvg-id="station.one" tvg-country="GB" tvg-language="English" group-title="Jazz",Example Radio\\nhttps://radio.example/live\\n'
+        payload = '\ufeff#EXTM3U\n#EXTINF:-1 tvg-id="station.one" tvg-country="GB" tvg-language="English" group-title="Jazz",Example Radio\nhttps://radio.example/live\n'
         records = parse_m3u(payload)
         self.assertEqual(1, len(records))
         self.assertEqual("Example Radio", records[0]["name"])
         self.assertEqual("station.one", records[0]["station_id"])
         self.assertEqual(["Jazz"], records[0]["genres"])
         self.assertEqual("GB", records[0]["country"])
+
+
+    def test_icecast_parser_handles_xml_namespaces_and_field_variants(self):
+        xml = '<root xmlns="urn:icecast"><station><name>Example</name><url>https://radio.example/live</url><genres>Jazz; News</genres><country_code>GB</country_code></station></root>'
+        records = parse_directory(xml)
+        self.assertEqual(1, len(records))
+        self.assertEqual("Example", records[0]["name"])
+        self.assertEqual("https://radio.example/live", records[0]["stream_url"])
+        self.assertEqual("GB", records[0]["country_code"])
 
 
 class ProviderSnapshotTests(unittest.TestCase):
