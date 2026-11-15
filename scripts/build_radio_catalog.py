@@ -81,9 +81,13 @@ def make_stream(source, url, codec="", bitrate=0, priority=50, source_station_id
 def make_station(name, country="", country_code="", language="", tags=None, streams=None):
     streams = [stream for stream in (streams or []) if valid_stream_url(stream.get("url"))]
     streams.sort(key=stream_sort_key, reverse=True)
+    source_ids = {
+        stream["source"]: stream["sourceStationId"]
+        for stream in streams if stream.get("sourceStationId")
+    }
     station = {
         "stationUuid": f"radsync:{slug(name)}",
-        "sourceIds": {},
+        "sourceIds": source_ids,
         "name": name.strip(),
         "normalizedName": normalize_name(name),
         "country": country,
@@ -158,7 +162,7 @@ async def load_source(session, source_id, config, loader):
             "source": source_id,
             "enabled": True,
             "status": "ok",
-            "stationCount": len(stations),
+            "stationCount": sum(bool(station.get("name") and station.get("streams")) for station in stations),
             "error": None,
         }
     except Exception as error:
@@ -172,7 +176,7 @@ async def load_source(session, source_id, config, loader):
 
 
 async def main():
-    version = int(datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S"))
+    version = int(datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f"))
     version_dir = OUTPUT / f"v{version}"
 
     for directory in ("genres", "countries", "languages", "groups"):
@@ -375,6 +379,11 @@ async def main():
             "languages": {"url": "groups/languages.json", "items": languages},
         },
     }
+    (version_dir / "stations.json").write_text(
+        json.dumps({"version": version, "stations": stations}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    master["stationsUrl"] = "stations.json"
     (version_dir / "master-index.json").write_text(json.dumps(master, ensure_ascii=False), encoding="utf-8")
 
     for group_type, items in (("genres", genres), ("countries", countries), ("languages", languages)):
@@ -397,10 +406,12 @@ async def main():
 
     current = OUTPUT / "current"
     current.mkdir(exist_ok=True)
-    (current / "master-index.json").write_text(
+    pointer_tmp = current / "master-index.json.tmp"
+    pointer_tmp.write_text(
         json.dumps({"version": version, "masterIndex": f"v{version}/master-index.json"}, ensure_ascii=False),
         encoding="utf-8",
     )
+    pointer_tmp.replace(current / "master-index.json")
 
 
 if __name__ == "__main__":
