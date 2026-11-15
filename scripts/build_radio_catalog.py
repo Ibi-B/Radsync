@@ -114,7 +114,49 @@ def make_stream(source, url, codec="", bitrate=0, priority=50, source_station_id
     }
 
 
-def make_station(name, country="", country_code="", language="", tags=None, streams=None):
+def make_identity_evidence(source, record=None, provider_record_id=None, source_url=None,
+                           playlist_path=None, entry_index=None, raw_extinf=None,
+                           stream_url=None, codec=None, bitrate=None):
+    """Keep a small, private evidence record for failed identity diagnostics."""
+    record = record if isinstance(record, dict) else {}
+    raw_name = get_value(record, "name")
+    provider_uuid = (
+        record.get("stationuuid") or record.get("stationUuid")
+        or record.get("station_uuid") or record.get("uuid")
+    )
+    tags = get_value(record, "tags")
+    if isinstance(tags, str):
+        tags = [part.strip() for part in tags.replace(";", ",").split(",") if part.strip()]
+    elif isinstance(tags, (list, tuple, set)):
+        tags = [as_text(tag) for tag in tags if as_text(tag)]
+    else:
+        tags = []
+    def safe_url(value):
+        try:
+            parsed = urlsplit(str(value or "").strip())
+            if not parsed.scheme or not parsed.netloc:
+                return str(value or "")[:500]
+            return parsed._replace(query="", fragment="").geturl()[:500]
+        except ValueError:
+            return str(value or "")[:500]
+    return {
+        "source": str(source or ""),
+        "providerStationUuid": str(provider_uuid or ""),
+        "providerRecordId": str(provider_record_id or get_value(record, "id") or ""),
+        "sourceUrl": safe_url(source_url),
+        "playlistPath": safe_url(playlist_path) if str(playlist_path or "").startswith(("http://", "https://")) else str(playlist_path or "")[:500],
+        "entryIndex": entry_index,
+        "rawName": str(raw_name or "")[:300],
+        "rawExtinf": str(raw_extinf or "")[:500],
+        "tags": tags[:50],
+        "codec": str(codec or get_value(record, "codec") or "")[:80],
+        "bitrate": bitrate if bitrate is not None else get_value(record, "bitrate", 0),
+        "streamUrl": safe_url(stream_url or get_value(record, "url")),
+    }
+
+
+def make_station(name, country="", country_code="", language="", tags=None, streams=None,
+                 identity_evidence=None):
     streams = [stream for stream in (streams or []) if valid_stream_url(stream.get("url"))]
     streams.sort(key=stream_sort_key, reverse=True)
     source_ids = {
@@ -139,6 +181,14 @@ def make_station(name, country="", country_code="", language="", tags=None, stre
         "status": "unknown",
         "lastCheckedAt": None,
         "failureCount": 0,
+        "_identityEvidence": list(identity_evidence or [
+            make_identity_evidence(
+                stream.get("source"), provider_record_id=stream.get("sourceStationId"),
+                stream_url=stream.get("url"), codec=stream.get("codec"),
+                bitrate=stream.get("bitrate"),
+            )
+            for stream in streams
+        ]),
     }
     refresh_station_sources(station)
     return station
@@ -146,6 +196,13 @@ def make_station(name, country="", country_code="", language="", tags=None, stre
 
 def merge_station(target, incoming):
     existing_urls = {stream["url"] for stream in target["streams"]}
+    evidence = target.setdefault("_identityEvidence", [])
+    known_evidence = {json.dumps(item, sort_keys=True, ensure_ascii=False) for item in evidence}
+    for item in incoming.get("_identityEvidence", []):
+        marker = json.dumps(item, sort_keys=True, ensure_ascii=False)
+        if marker not in known_evidence:
+            evidence.append(item)
+            known_evidence.add(marker)
 
     existing_by_url = {stream["url"]: stream for stream in target["streams"]}
     for stream in incoming["streams"]:
@@ -240,27 +297,105 @@ def _canonical_identity_disambiguator(station):
     return json.dumps({"providerIds": provider_ids, "streams": stream_provenance}, ensure_ascii=False, separators=(",", ":"))
 
 
-def assign_canonical_station_ids(stations):
-    """Assign deterministic UUIDv5 identities after aggregation."""
+def _identity_diagnostic_record(station):
+    evidence = station.get("_identityEvidence") or []
+    if not evidence:
+        evidence = [
+            make_identity_evidence(
+                stream.get("source"), provider_record_id=stream.get("sourceStationId"),
+                stream_url=stream.get("url"), codec=stream.get("codec"),
+                bitrate=stream.get("bitrate"),
+            )
+            for stream in station.get("streams", [])
+        ]
+    return {
+        "stationName": station.get("name", ""),
+        "normalizedName": normalize_name(station.get("name", "")),
+        "identityInputs": {
+            "normalizedName": normalize_name(station.get("name", "")),
+            "countryCode": str(station.get("countryCode") or "").strip().casefold(),
+            "country": str(station.get("country") or "").strip().casefold(),
+            "language": str(station.get("language") or "").strip().casefold(),
+        },
+        "country": station.get("country", ""),
+        "countryCode": station.get("countryCode", ""),
+        "language": station.get("language", ""),
+        "providerIdentities": sorted({
+            f"{item.get('source', '')}:{item.get('providerStationUuid') or item.get('providerRecordId')}"
+            for item in evidence
+            if item.get("providerStationUuid") or item.get("providerRecordId")
+        }),
+        "records": evidence,
+        "streams": [
+            {
+                "source": stream.get("source", ""),
+                "sourceStationIds": stream.get("sourceStationIds", []),
+                "codec": stream.get("codec", ""),
+                "bitrate": stream.get("bitrate", 0),
+                "streamUrl": make_identity_evidence(
+                    stream.get("source"), stream_url=stream.get("url")
+                )["streamUrl"],
+            }
+            for stream in station.get("streams", [])
+        ],
+    }
+
+
+def assign_canonical_station_ids(stations, diagnostic_path=None, catalog_version=None):
+    """Assign deterministic UUIDv5 identities; write diagnostics before failing closed."""
     by_base = {}
     for station in stations:
         by_base.setdefault(_canonical_identity_base(station), []).append(station)
 
+    ambiguous_groups = []
     for base, collisions in by_base.items():
         if len(collisions) == 1:
             collisions[0]["stationUuid"] = str(uuid.uuid5(RADSYNC_NAMESPACE, base))
             continue
 
-        fingerprints = set()
+        fingerprints = {}
         for station in sorted(collisions, key=_canonical_identity_disambiguator):
             fingerprint = _canonical_identity_disambiguator(station)
-            if fingerprint in fingerprints:
-                raise ValueError(
-                    "Cannot assign stable distinct station identities: separate canonical "
-                    "stations have identical metadata and provider provenance"
-                )
-            fingerprints.add(fingerprint)
+            fingerprints.setdefault(fingerprint, []).append(station)
             station["stationUuid"] = str(uuid.uuid5(RADSYNC_NAMESPACE, f"{base}|{fingerprint}"))
+
+        duplicates = [group for group in fingerprints.values() if len(group) > 1]
+        if duplicates:
+            records = [_identity_diagnostic_record(station) for station in collisions]
+            identities = [
+                set(record["providerIdentities"]) for record in records
+            ]
+            repeated_provider_identity = any(
+                left.intersection(right)
+                for index, left in enumerate(identities)
+                for right in identities[index + 1:]
+            )
+            ambiguous_groups.append({
+                "groupFingerprint": hashlib.sha256(base.encode("utf-8")).hexdigest(),
+                "canonicalIdentity": json.loads(base),
+                "classification": "likely_duplicate" if repeated_provider_identity else "ambiguous",
+                "reason": "Multiple separate aggregates have identical canonical metadata and provider/stream provenance.",
+                "duplicateFingerprintCount": len(duplicates),
+                "records": records,
+            })
+
+    if ambiguous_groups:
+        report = {
+            "generatedAt": datetime.now(timezone.utc).isoformat(),
+            "catalogVersion": catalog_version,
+            "ambiguousGroups": ambiguous_groups,
+        }
+        if diagnostic_path is not None:
+            path = Path(diagnostic_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        raise ValueError(
+            "Cannot assign stable distinct station identities: separate canonical stations "
+            "have identical metadata and provider provenance"
+        )
+
+    if diagnostic_path is not None:
+        Path(diagnostic_path).unlink(missing_ok=True)
 
     identities = [station.get("stationUuid") for station in stations]
     if any(not identity for identity in identities) or len(identities) != len(set(identities)):
@@ -334,6 +469,8 @@ async def load_source(session, source_id, config, loader, state_dir):
 async def main(state_dir=Path("state")):
     version = int(datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f"))
     version_dir = OUTPUT / f"v{version}"
+    diagnostics_path = Path(state_dir) / "diagnostics" / "identity-ambiguity.json"
+    diagnostics_path.unlink(missing_ok=True)
 
     for directory in ("genres", "countries", "languages", "groups"):
         (version_dir / directory).mkdir(parents=True, exist_ok=True)
@@ -362,6 +499,10 @@ async def main(state_dir=Path("state")):
                     normalized["language"], normalized["tags"],
                     [make_stream("radio-browser", normalized["url"], normalized["codec"],
                                  normalized["bitrate"], priority, normalized["sourceStationId"])],
+                    identity_evidence=[make_identity_evidence(
+                        "radio-browser", item, normalized["sourceStationId"], source_config["url"],
+                        stream_url=normalized["url"], codec=normalized["codec"], bitrate=normalized["bitrate"],
+                    )],
                 ))
         return result
 
@@ -408,6 +549,11 @@ async def main(state_dir=Path("state")):
                     as_text(get_value(station, "language", "")),
                     as_tags(get_value(station, "tags") or []),
                     streams,
+                    identity_evidence=[make_identity_evidence(
+                        "airwavedb", station, station_id, source_config["stationsUrl"],
+                        stream_url=stream.get("url"), codec=get_value(stream, "codec"),
+                        bitrate=get_value(stream, "bitrate", 0),
+                    ) for stream in streams_by_station.get(str(station_id), [])],
                 ))
         return result
 
@@ -442,6 +588,13 @@ async def main(state_dir=Path("state")):
                     priority=priority,
                     source_station_id=item.get("station_id"),
                 )],
+                identity_evidence=[make_identity_evidence(
+                    source_id, {"name": item.get("name"), "id": item.get("station_id"),
+                                "tags": item.get("genres"), "codec": item.get("attributes", {}).get("tvg-audio")},
+                    item.get("station_id"), url, playlist_path=url,
+                    entry_index=item.get("entry_index"), raw_extinf=item.get("raw_extinf"),
+                    stream_url=item.get("stream_url"), codec=item.get("attributes", {}).get("tvg-audio"),
+                )],
             )
             for item in raw
         ]
@@ -457,6 +610,10 @@ async def main(state_dir=Path("state")):
                     normalized["language"], normalized["tags"],
                     [make_stream("iptv-org-streams", normalized["url"], normalized["codec"],
                                  normalized["bitrate"], priority, normalized["sourceStationId"])],
+                    identity_evidence=[make_identity_evidence(
+                        "iptv-org-streams", item, normalized["sourceStationId"], source_config["url"],
+                        stream_url=normalized["url"], codec=normalized["codec"], bitrate=normalized["bitrate"],
+                    )],
                 ))
         return result
 
@@ -539,7 +696,12 @@ async def main(state_dir=Path("state")):
                 candidates.append(station)
 
     stations = [station for candidates in stations_by_name.values() for station in candidates]
-    assign_canonical_station_ids(stations)
+    assign_canonical_station_ids(
+        stations, diagnostic_path=diagnostics_path, catalog_version=version
+    )
+    # Diagnostic provenance is private state only; never leak it into the published schema.
+    for station in stations:
+        station.pop("_identityEvidence", None)
 
     def write_group(directory, groups):
         items = []

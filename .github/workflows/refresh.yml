@@ -125,6 +125,15 @@ jobs:
             git -C state push origin HEAD:refs/heads/radsync-state
           fi
 
+      - name: Upload identity ambiguity diagnostics
+        if: ${{ always() && steps.state_checkout.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: identity-ambiguity-${{ github.run_id }}
+          path: state/diagnostics/identity-ambiguity.json
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Upload Pages artifact
         if: ${{ steps.build_catalogue.outcome == 'success' }}
         uses: actions/upload-pages-artifact@v3

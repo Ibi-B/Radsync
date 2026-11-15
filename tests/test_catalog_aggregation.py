@@ -1,4 +1,7 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from scripts.build_radio_catalog import (
     assign_canonical_station_ids,
@@ -104,6 +107,60 @@ class CatalogAggregationTests(unittest.TestCase):
         )
         with self.assertRaises(ValueError):
             assign_canonical_station_ids([first, second])
+
+    def test_identity_ambiguity_writes_private_diagnostic_before_failing(self):
+        first = make_station(
+            "Same", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider", "https://same.example/live?token=secret", priority=50, source_station_id="same-id")],
+        )
+        second = make_station(
+            "Same", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider", "https://same.example/live?token=secret", priority=50, source_station_id="same-id")],
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "diagnostics" / "identity-ambiguity.json"
+            with self.assertRaisesRegex(ValueError, "identical metadata and provider provenance"):
+                assign_canonical_station_ids([first, second], path, catalog_version=123)
+            report = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(123, report["catalogVersion"])
+        self.assertEqual(1, len(report["ambiguousGroups"]))
+        group = report["ambiguousGroups"][0]
+        self.assertEqual("likely_duplicate", group["classification"])
+        self.assertEqual(2, len(group["records"]))
+        self.assertNotIn("token=secret", json.dumps(report))
+
+    def test_identity_diagnostic_captures_raw_provider_evidence(self):
+        from scripts.build_radio_catalog import make_identity_evidence
+        evidence = make_identity_evidence(
+            "radio-browser",
+            {"name": "Raw Station", "stationuuid": "uuid-1", "tags": "news,pop"},
+            provider_record_id="record-1",
+            source_url="https://provider.example/api?key=secret",
+            stream_url="https://stream.example/live?token=secret",
+            codec="AAC",
+            bitrate=128,
+        )
+        self.assertEqual("uuid-1", evidence["providerStationUuid"])
+        self.assertEqual("record-1", evidence["providerRecordId"])
+        self.assertEqual("Raw Station", evidence["rawName"])
+        self.assertEqual(["news", "pop"], evidence["tags"])
+        self.assertNotIn("secret", json.dumps(evidence))
+
+    def test_diagnostic_report_includes_every_indistinguishable_group(self):
+        stations = []
+        for name in ("Same A", "Same B"):
+            stations.extend([
+                make_station(name, country="GB", country_code="GB", language="English",
+                             streams=[make_stream("provider", f"https://{name.replace(' ', '').lower()}.example/live", source_station_id="same-id")]),
+                make_station(name, country="GB", country_code="GB", language="English",
+                             streams=[make_stream("provider", f"https://{name.replace(' ', '').lower()}.example/live", source_station_id="same-id")]),
+            ])
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "identity-ambiguity.json"
+            with self.assertRaises(ValueError):
+                assign_canonical_station_ids(stations, path)
+            report = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(2, len(report["ambiguousGroups"]))
 
     def test_invalid_stream_urls_are_not_published(self):
         station = make_station(

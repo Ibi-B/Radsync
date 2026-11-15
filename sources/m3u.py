@@ -21,6 +21,8 @@ def parse_m3u(text: str, base_url: str = ""):
             attributes = {key.lower(): value for key, value in ATTRIBUTE_RE.findall(line)}
             duration = line.split(":", 1)[1].split(",", 1)[0].strip()
             current = {
+                "entry_index": len(stations),
+                "raw_extinf": line[:500],
                 "name": metadata or attributes.get("tvg-name") or attributes.get("name") or "",
                 "attributes": attributes,
                 "duration": duration,
