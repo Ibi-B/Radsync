@@ -206,13 +206,11 @@ def _canonical_identity_disambiguator(station):
         for source_id in stream.get("sourceStationIds", [])
         if source_id
     )
-    if provider_ids:
-        return json.dumps(provider_ids, ensure_ascii=False, separators=(",", ":"))
-    fallback = sorted(
+    stream_provenance = sorted(
         f"{stream.get('source', '')}:{stream.get('url', '')}"
         for stream in station.get("streams", [])
     )
-    return json.dumps(fallback, ensure_ascii=False, separators=(",", ":"))
+    return json.dumps({"providerIds": provider_ids, "streams": stream_provenance}, ensure_ascii=False, separators=(",", ":"))
 
 
 def assign_canonical_station_ids(stations):
