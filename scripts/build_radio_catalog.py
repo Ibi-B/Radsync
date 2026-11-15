@@ -209,7 +209,17 @@ async def load_source(session, source_id, config, loader, state_dir):
     except Exception as error:
         snapshot = load_snapshot(state_dir, source_id)
         if snapshot:
-            return snapshot["stations"], {
+            restored_stations = snapshot["stations"]
+            for station in restored_stations:
+                for stream in station.get("streams", []):
+                    try:
+                        bitrate = max(0, int(stream.get("bitrate", 0) or 0))
+                    except (TypeError, ValueError):
+                        bitrate = 0
+                    stream["priority"] = priority
+                    stream["qualityScore"] = round(priority + min(bitrate / 10.0, 20.0), 2)
+                refresh_station_sources(station)
+            return restored_stations, {
                 "source": source_id,
                 "enabled": True,
                 "status": "stale",
