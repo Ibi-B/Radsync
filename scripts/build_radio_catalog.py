@@ -10,6 +10,7 @@ import hashlib
 import json
 import re
 import unicodedata
+import uuid
 from urllib.parse import urlsplit
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,6 +28,7 @@ from sources.normalize import as_records, get_value, as_text, as_tags, normalize
 from sources.state import load_snapshot, save_snapshot
 
 OUTPUT = Path("output")
+RADSYNC_NAMESPACE = uuid.UUID("5d0f2f8e-3c52-5c7f-9b4f-6fbb3c7c1a42")
 
 
 def slug(value: str):
@@ -120,7 +122,8 @@ def make_station(name, country="", country_code="", language="", tags=None, stre
         for stream in streams if stream.get("sourceStationId")
     }
     station = {
-        "stationUuid": f"radsync:{slug(name)}:{slug(country_code or country or 'unknown')}:{slug(language or 'unknown')}",
+        # Assigned after reconciliation, once canonical groups are known.
+        "stationUuid": None,
         "sourceIds": source_ids,
         "name": str(name or "").strip(),
         "normalizedName": normalize_name(name),
@@ -184,6 +187,60 @@ def stations_compatible(existing, incoming):
 def find_station_match(candidates, incoming):
     compatible = [station for station in candidates if stations_compatible(station, incoming)]
     return compatible[0] if len(compatible) == 1 else None
+
+
+def _canonical_identity_base(station):
+    values = (
+        normalize_name(station.get("name", "")),
+        str(station.get("countryCode") or "").strip().casefold(),
+        str(station.get("country") or "").strip().casefold(),
+        str(station.get("language") or "").strip().casefold(),
+    )
+    return json.dumps(values, ensure_ascii=False, separators=(",", ":"))
+
+
+def _canonical_identity_disambiguator(station):
+    provider_ids = sorted(
+        f"{stream.get('source', '')}:{source_id}"
+        for stream in station.get("streams", [])
+        for source_id in stream.get("sourceStationIds", [])
+        if source_id
+    )
+    if provider_ids:
+        return json.dumps(provider_ids, ensure_ascii=False, separators=(",", ":"))
+    fallback = sorted(
+        f"{stream.get('source', '')}:{stream.get('url', '')}"
+        for stream in station.get("streams", [])
+    )
+    return json.dumps(fallback, ensure_ascii=False, separators=(",", ":"))
+
+
+def assign_canonical_station_ids(stations):
+    """Assign deterministic UUIDv5 identities after aggregation."""
+    by_base = {}
+    for station in stations:
+        by_base.setdefault(_canonical_identity_base(station), []).append(station)
+
+    for base, collisions in by_base.items():
+        if len(collisions) == 1:
+            collisions[0]["stationUuid"] = str(uuid.uuid5(RADSYNC_NAMESPACE, base))
+            continue
+
+        fingerprints = set()
+        for station in sorted(collisions, key=_canonical_identity_disambiguator):
+            fingerprint = _canonical_identity_disambiguator(station)
+            if fingerprint in fingerprints:
+                raise ValueError(
+                    "Cannot assign stable distinct station identities: separate canonical "
+                    "stations have identical metadata and provider provenance"
+                )
+            fingerprints.add(fingerprint)
+            station["stationUuid"] = str(uuid.uuid5(RADSYNC_NAMESPACE, f"{base}|{fingerprint}"))
+
+    identities = [station.get("stationUuid") for station in stations]
+    if any(not identity for identity in identities) or len(identities) != len(set(identities)):
+        raise ValueError("Canonical station identity assignment produced a missing or duplicate ID")
+    return stations
 
 
 async def load_source(session, source_id, config, loader, state_dir):
@@ -271,7 +328,7 @@ async def main(state_dir=Path("state")):
                 "url": item.get("url_resolved") or item.get("urlResolved") or get_value(item, "url"),
                 "codec": get_value(item, "codec"),
                 "bitrate": get_value(item, "bitrate", 0),
-                "id": get_value(item, "id"),
+                "id": get_value(item, "stationuuid") or get_value(item, "stationUuid") or get_value(item, "id"),
             }
             normalized = normalize_record(record)
             if normalized:
@@ -457,6 +514,7 @@ async def main(state_dir=Path("state")):
                 candidates.append(station)
 
     stations = [station for candidates in stations_by_name.values() for station in candidates]
+    assign_canonical_station_ids(stations)
 
     def write_group(directory, groups):
         items = []
