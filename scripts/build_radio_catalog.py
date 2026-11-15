@@ -144,7 +144,7 @@ def make_identity_evidence(source, record=None, provider_record_id=None, source_
         "providerStationUuid": str(provider_uuid or ""),
         "providerRecordId": str(provider_record_id or get_value(record, "id") or ""),
         "sourceUrl": safe_url(source_url),
-        "playlistPath": str(playlist_path or ""),
+        "playlistPath": safe_url(playlist_path) if str(playlist_path or "").startswith(("http://", "https://")) else str(playlist_path or "")[:500],
         "entryIndex": entry_index,
         "rawName": str(raw_name or "")[:300],
         "rawExtinf": str(raw_extinf or "")[:500],
@@ -311,6 +311,12 @@ def _identity_diagnostic_record(station):
     return {
         "stationName": station.get("name", ""),
         "normalizedName": normalize_name(station.get("name", "")),
+        "identityInputs": {
+            "normalizedName": normalize_name(station.get("name", "")),
+            "countryCode": str(station.get("countryCode") or "").strip().casefold(),
+            "country": str(station.get("country") or "").strip().casefold(),
+            "language": str(station.get("language") or "").strip().casefold(),
+        },
         "country": station.get("country", ""),
         "countryCode": station.get("countryCode", ""),
         "language": station.get("language", ""),
