@@ -108,7 +108,8 @@ class SourceFallbackTests(unittest.IsolatedAsyncioTestCase):
                 None, "fixture", {"enabled": True, "priority": 50},
                 AsyncMock(return_value=[]), temporary,
             )
-            self.assertEqual([station], stations)
+            self.assertEqual("Saved Station", stations[0]["name"])
+            self.assertEqual("https://saved.example/live", stations[0]["streams"][0]["url"])
             self.assertEqual("stale", report["status"])
 
     async def test_provider_failure_restores_its_own_last_good_snapshot(self):
