@@ -22,7 +22,7 @@ from sources.iptv_org_streams import fetch_streams
 from sources.somafm import fetch_channels
 from sources.github_playlists import fetch_repository_playlists
 from sources.m3u import parse_m3u
-from sources.normalize import as_records, get_value, as_text, as_tags
+from sources.normalize import as_records, get_value, as_tags, normalize_record
 from sources.state import load_snapshot, save_snapshot
 
 OUTPUT = Path("output")
@@ -252,7 +252,7 @@ async def main(state_dir=Path("state")):
                 "bitrate": get_value(item, "bitrate", 0),
                 "id": get_value(item, "id"),
             }
-            normalized = __import__("sources.normalize", fromlist=["normalize_record"]).normalize_record(record)
+            normalized = normalize_record(record)
             if normalized:
                 result.append(make_station(
                     normalized["name"], normalized["country"], normalized["countryCode"],
@@ -272,7 +272,13 @@ async def main(state_dir=Path("state")):
         raw_streams = as_records(raw_streams, ("streams", "data", "items"))
         streams_by_station = {}
         for stream in raw_streams:
-            station_id = get_value(stream, "station_id") or get_value(stream, "id")
+            station_id = (
+                stream.get("stationId") or stream.get("station_id")
+                or stream.get("stationUuid") or stream.get("station_uuid")
+                or stream.get("station")
+            )
+            if isinstance(station_id, dict):
+                station_id = get_value(station_id, "id")
             if station_id:
                 streams_by_station.setdefault(str(station_id), []).append(stream)
 
@@ -288,7 +294,7 @@ async def main(state_dir=Path("state")):
                     priority,
                     station_id,
                 )
-                for stream in streams_by_station.get(station_id, [])
+                for stream in streams_by_station.get(str(station_id), [])
             ]
             if streams:
                 streams[0]["stationUuid"] = station_id
