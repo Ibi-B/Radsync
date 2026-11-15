@@ -57,7 +57,8 @@ class CatalogAggregationTests(unittest.TestCase):
         station = self.station("source-a", "https://same.example/live", 80)
         merge_station(station, self.station("source-b", "https://same.example/live", 70))
         self.assertEqual(1, len(station["streams"]))
-        self.assertEqual(["source-a"], station["sources"])
+        self.assertEqual(["source-a", "source-b"], station["sources"])
+        self.assertEqual(["source-a", "source-b"], station["streams"][0]["sources"])
 
     def test_source_group_indexes_match_sorted_streams(self):
         station = self.station("source-a", "https://a.example/live", 50)
