@@ -6,6 +6,7 @@ The highest-quality available stream is selected as the default.
 """
 import argparse
 import asyncio
+import hashlib
 import json
 import re
 import unicodedata
@@ -33,6 +34,16 @@ def slug(value: str):
     value = re.sub(r"[^\w]+", "-", value.lower()).strip("-")
     return value or "station"
 
+
+
+def group_slug(value: str, max_length: int = 96):
+    """Create a filesystem-safe, bounded group filename without truncation collisions."""
+    base = slug(value)
+    if len(base) <= max_length:
+        return base
+    digest = hashlib.sha256(str(value).encode("utf-8")).hexdigest()[:12]
+    prefix_length = max_length - len(digest) - 1
+    return f"{base[:prefix_length].rstrip('-')}-{digest}"
 
 def normalize_name(value: str):
     value = unicodedata.normalize("NFKD", value or "")
@@ -450,9 +461,10 @@ async def main(state_dir=Path("state")):
     def write_group(directory, groups):
         items = []
         for group_id, group_stations in sorted(groups.items()):
-            path = directory / f"{slug(group_id)}.json"
-            path.write_text(json.dumps({"id": slug(group_id), "version": version, "stations": group_stations}, ensure_ascii=False), encoding="utf-8")
-            items.append({"id": slug(group_id), "name": group_id, "count": len(group_stations), "url": f"{directory.name}/{slug(group_id)}.json"})
+            group_id_slug = group_slug(group_id)
+            path = directory / f"{group_id_slug}.json"
+            path.write_text(json.dumps({"id": group_id_slug, "version": version, "stations": group_stations}, ensure_ascii=False), encoding="utf-8")
+            items.append({"id": group_id_slug, "name": group_id, "count": len(group_stations), "url": f"{directory.name}/{group_id_slug}.json"})
         return items
 
     genre_groups = {}
