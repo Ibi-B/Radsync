@@ -313,6 +313,9 @@ async def main(state_dir=Path("state")):
         return [
             make_station(
                 item["name"],
+                country=item.get("country", ""),
+                country_code=item.get("country_code", ""),
+                language=item.get("language", ""),
                 tags=item["genres"],
                 streams=[make_stream("icecast", item["stream_url"], item["codec"], item["bitrate"], priority)],
             )
