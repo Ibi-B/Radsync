@@ -61,7 +61,7 @@ class CatalogAggregationTests(unittest.TestCase):
         assign_canonical_station_ids(reversed_stations)
         self.assertEqual(expected, {station["stationUuid"] for station in reversed_stations})
 
-    def test_same_name_country_and_language_with_distinct_provider_ids_are_unique(self):
+    def test_same_name_country_and_language_with_distinct_provider_ids_merge(self):
         first = make_station(
             "Example Radio", country="GB", country_code="GB", language="English",
             streams=[make_stream("radio-browser", "https://one.example/live", priority=80, source_station_id="rb-1")],
@@ -70,8 +70,13 @@ class CatalogAggregationTests(unittest.TestCase):
             "Example Radio", country="GB", country_code="GB", language="English",
             streams=[make_stream("airwavedb", "https://two.example/live", priority=80, source_station_id="aw-2")],
         )
-        assign_canonical_station_ids([first, second])
-        self.assertNotEqual(first["stationUuid"], second["stationUuid"])
+        self.assertIs(first, find_station_match([first], second))
+        merge_station(first, second)
+        assign_canonical_station_ids([first])
+        self.assertEqual(2, len(first["streams"]))
+        self.assertEqual({"rb-1", "aw-2"}, {
+            source_id for stream in first["streams"] for source_id in stream["sourceStationIds"]
+        })
 
     def test_genuine_duplicate_keeps_all_streams_under_one_identity(self):
         first = make_station(
