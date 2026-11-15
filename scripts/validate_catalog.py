@@ -67,11 +67,17 @@ def validate_catalog(output=OUTPUT):
             if default_index != 0 or station.get("defaultSource") != streams[0].get("source"):
                 print(f"Default stream is not the highest-ranked stream for station {station_id}")
                 return 1
-            grouped_indexes = {
-                index
-                for group in station.get("sourceGroups", [])
-                for index in group.get("streamIndexes", [])
-            }
+            grouped_indexes = set()
+            for group in station.get("sourceGroups", []):
+                source = group.get("source")
+                for index in group.get("streamIndexes", []):
+                    if not isinstance(index, int) or not 0 <= index < len(streams):
+                        print(f"Invalid source-group stream index for station {station_id}")
+                        return 1
+                    if source not in streams[index].get("sources", [streams[index].get("source")]):
+                        print(f"Source group does not match stream provenance for station {station_id}")
+                        return 1
+                    grouped_indexes.add(index)
             if grouped_indexes != set(range(len(streams))):
                 print(f"Source groups do not cover all streams for station {station_id}")
                 return 1
