@@ -62,6 +62,13 @@ class StationIdentityContinuityTests(unittest.TestCase):
         self.assertEqual(1, report["added"])
         self.assertEqual([], report["changes"])
 
+    def test_report_order_is_deterministic(self):
+        old = [station("old-b", "Beta"), station("old-a", "Alpha")]
+        new = [station("new-a", "Alpha"), station("new-b", "Beta")]
+        first = build_continuity_report(old, new, 1, 2)
+        second = build_continuity_report(list(reversed(old)), list(reversed(new)), 1, 2)
+        self.assertEqual(first, second)
+
 
 if __name__ == "__main__":
     unittest.main()
