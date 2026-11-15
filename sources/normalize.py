@@ -11,7 +11,7 @@ ALIASES = {
     "tags": ("tags", "tag", "genres", "genre", "categories", "category", "labels"),
     "codec": ("codec", "format", "audio_codec", "audioCodec", "mime", "content_type"),
     "bitrate": ("bitrate", "bit_rate", "bitRate", "kbps", "quality"),
-    "id": ("id", "uuid", "stationuuid", "stationUuid", "station_id", "stationId", "channel_id", "channelId"),
+    "id": ("id", "uuid", "stationuuid", "stationUuid", "station_id", "stationId", "station_uuid", "channel_id", "channelId"),
 }
 
 

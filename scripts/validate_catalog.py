@@ -74,6 +74,9 @@ def validate_catalog(output=OUTPUT):
                     if not isinstance(index, int) or not 0 <= index < len(streams):
                         print(f"Invalid source-group stream index for station {station_id}")
                         return 1
+                    if index in grouped_indexes:
+                        print(f"Stream index is assigned to multiple source groups for station {station_id}")
+                        return 1
                     if source not in streams[index].get("sources", [streams[index].get("source")]):
                         print(f"Source group does not match stream provenance for station {station_id}")
                         return 1
@@ -105,6 +108,22 @@ def validate_catalog(output=OUTPUT):
             if not group_file.exists():
                 print(f"Missing group index: {group_type}")
                 return 1
+
+            group_index = json.loads(group_file.read_text(encoding="utf-8"))
+            for item in group_index.get("items", []):
+                item_path = version_dir / item["url"]
+                if not item_path.exists():
+                    print(f"Missing {group_type} group file: {item['url']}")
+                    return 1
+                group_payload = json.loads(item_path.read_text(encoding="utf-8"))
+                group_stations = group_payload.get("stations", [])
+                group_ids = [station.get("stationUuid") for station in group_stations]
+                if any(not identity for identity in group_ids) or len(group_ids) != len(set(group_ids)):
+                    print(f"Missing or duplicate station identity in {group_type} group: {item.get('name', item.get('id'))}")
+                    return 1
+                if not set(group_ids).issubset(station_ids):
+                    print(f"Unknown station identity in {group_type} group: {item.get('name', item.get('id'))}")
+                    return 1
 
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
         print(f"Invalid catalogue structure: {error}")
