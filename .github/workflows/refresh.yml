@@ -72,8 +72,9 @@ jobs:
           master_path = pointer["masterIndex"].lstrip("/")
           with urlopen(base + "/" + master_path, timeout=30) as response:
               master = json.load(response)
+          version_prefix = pointer["masterIndex"].rsplit("/", 1)[0]
           stations_path = master["stationsUrl"].lstrip("/")
-          with urlopen(base + "/" + pointer["masterIndex"].rsplit("/", 1)[0] + "/" + stations_path, timeout=30) as response:
+          with urlopen(base + "/" + version_prefix + "/" + stations_path, timeout=30) as response:
               stations = json.load(response)
           Path("continuity/previous-stations.json").write_text(json.dumps(stations), encoding="utf-8")
           Path("continuity/previous-version.txt").write_text(str(pointer["version"]), encoding="utf-8")
