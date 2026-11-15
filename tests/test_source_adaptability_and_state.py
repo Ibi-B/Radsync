@@ -63,7 +63,7 @@ class PlaylistFormatTests(unittest.TestCase):
 
 class ProviderSnapshotTests(unittest.TestCase):
     def test_snapshot_round_trip_and_validation(self):
-        station = {"name": "Example", "streams": [{"url": "https://a.example/live"}]}
+        station = {"name": "Example", "streams": [{"source": "radio-browser", "url": "https://a.example/live"}]}
         with tempfile.TemporaryDirectory() as temporary:
             saved = save_snapshot(temporary, "radio-browser", [station])
             restored = load_snapshot(temporary, "radio-browser")
