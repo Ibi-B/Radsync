@@ -116,11 +116,13 @@ class SourceFallbackTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as temporary:
             save_snapshot(temporary, "fixture", [station])
             stations, report = await load_source(
-                None, "fixture", {"enabled": True, "priority": 50},
+                None, "fixture", {"enabled": True, "priority": 80},
                 AsyncMock(side_effect=RuntimeError("upstream unavailable")), temporary,
             )
             self.assertEqual([station], stations)
             self.assertEqual("stale", report["status"])
+            self.assertEqual(80, stations[0]["streams"][0]["priority"])
+            self.assertEqual(80, stations[0]["streams"][0]["qualityScore"])
             self.assertEqual("last-good", report["snapshot"])
 
 
