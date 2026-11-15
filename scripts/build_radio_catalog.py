@@ -4,6 +4,7 @@
 Duplicate stations are retained as multiple selectable stream variants.
 The highest-quality available stream is selected as the default.
 """
+import argparse
 import asyncio
 import json
 import re
@@ -21,6 +22,8 @@ from sources.iptv_org_streams import fetch_streams
 from sources.somafm import fetch_channels
 from sources.github_playlists import fetch_repository_playlists
 from sources.m3u import parse_m3u
+from sources.normalize import as_records, get_value, as_text, as_tags
+from sources.state import load_snapshot, save_snapshot
 
 OUTPUT = Path("output")
 
@@ -172,7 +175,7 @@ def find_station_match(candidates, incoming):
     return compatible[0] if len(compatible) == 1 else None
 
 
-async def load_source(session, source_id, config, loader):
+async def load_source(session, source_id, config, loader, state_dir):
     enabled = config.get("enabled", False)
     priority = config.get("priority", 50)
 
@@ -187,24 +190,45 @@ async def load_source(session, source_id, config, loader):
 
     try:
         stations = await loader(session, config, priority)
+        stations = [
+            station for station in stations
+            if station.get("name") and station.get("streams")
+            and any(valid_stream_url(stream.get("url")) for stream in station.get("streams", []))
+        ]
+        if not stations:
+            raise ValueError("Source returned no usable stations; protecting its last-good snapshot")
+        save_snapshot(state_dir, source_id, stations)
         return stations, {
             "source": source_id,
             "enabled": True,
             "status": "ok",
-            "stationCount": sum(bool(station.get("name") and station.get("streams")) for station in stations),
+            "stationCount": len(stations),
+            "snapshot": "refreshed",
             "error": None,
         }
     except Exception as error:
+        snapshot = load_snapshot(state_dir, source_id)
+        if snapshot:
+            return snapshot["stations"], {
+                "source": source_id,
+                "enabled": True,
+                "status": "stale",
+                "stationCount": len(snapshot["stations"]),
+                "snapshot": "last-good",
+                "snapshotUpdatedAt": snapshot.get("updatedAt"),
+                "error": str(error),
+            }
         return [], {
             "source": source_id,
             "enabled": True,
             "status": "failed",
             "stationCount": 0,
+            "snapshot": "unavailable",
             "error": str(error),
         }
 
 
-async def main():
+async def main(state_dir=Path("state")):
     version = int(datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f"))
     version_dir = OUTPUT / f"v{version}"
 
@@ -214,25 +238,29 @@ async def main():
     config = json.loads(Path("config/sources.json").read_text(encoding="utf-8"))
 
     async def load_radio_browser(session, source_config, priority):
-        raw = await fetch_stations(session, source_config["url"])
-        return [
-            make_station(
-                item.get("name", ""),
-                item.get("country", ""),
-                item.get("countrycode", ""),
-                item.get("language", ""),
-                [tag.strip() for tag in (item.get("tags") or "").split(",") if tag.strip()],
-                [make_stream(
-                    "radio-browser",
-                    item.get("url_resolved") or item.get("url") or "",
-                    item.get("codec") or "",
-                    item.get("bitrate") or 0,
-                    priority,
-                    item.get("stationuuid") or item.get("changeuuid"),
-                )],
-            )
-            for item in raw
-        ]
+        raw = as_records(await fetch_stations(session, source_config["url"]))
+        result = []
+        for item in raw:
+            record = {
+                "name": get_value(item, "name"),
+                "country": get_value(item, "country"),
+                "countryCode": get_value(item, "country_code"),
+                "language": get_value(item, "language"),
+                "tags": get_value(item, "tags"),
+                "url": item.get("url_resolved") or item.get("urlResolved") or get_value(item, "url"),
+                "codec": get_value(item, "codec"),
+                "bitrate": get_value(item, "bitrate", 0),
+                "id": get_value(item, "id"),
+            }
+            normalized = __import__("sources.normalize", fromlist=["normalize_record"]).normalize_record(record)
+            if normalized:
+                result.append(make_station(
+                    normalized["name"], normalized["country"], normalized["countryCode"],
+                    normalized["language"], normalized["tags"],
+                    [make_stream("radio-browser", normalized["url"], normalized["codec"],
+                                 normalized["bitrate"], priority, normalized["sourceStationId"])],
+                ))
+        return result
 
     async def load_airwavedb(session, source_config, priority):
         raw_stations, raw_streams = await fetch_catalog(
@@ -240,21 +268,23 @@ async def main():
             source_config["stationsUrl"],
             source_config["streamsUrl"],
         )
+        raw_stations = as_records(raw_stations, ("stations", "data", "items"))
+        raw_streams = as_records(raw_streams, ("streams", "data", "items"))
         streams_by_station = {}
         for stream in raw_streams:
-            station_id = stream.get("stationId") or stream.get("stationUuid")
+            station_id = get_value(stream, "station_id") or get_value(stream, "id")
             if station_id:
-                streams_by_station.setdefault(station_id, []).append(stream)
+                streams_by_station.setdefault(str(station_id), []).append(stream)
 
         result = []
         for station in raw_stations:
-            station_id = station.get("id") or station.get("stationUuid")
+            station_id = get_value(station, "id")
             streams = [
                 make_stream(
                     "airwavedb",
-                    stream.get("url") or stream.get("streamUrl") or "",
-                    stream.get("codec") or "",
-                    stream.get("bitrate") or 0,
+                    get_value(stream, "url") or "",
+                    get_value(stream, "codec") or "",
+                    get_value(stream, "bitrate") or 0,
                     priority,
                     station_id,
                 )
@@ -263,11 +293,11 @@ async def main():
             if streams:
                 streams[0]["stationUuid"] = station_id
                 result.append(make_station(
-                    station.get("name", ""),
-                    station.get("country", ""),
-                    station.get("countryCode") or station.get("country_code", ""),
-                    station.get("language", ""),
-                    station.get("tags") or station.get("categories") or [],
+                    get_value(station, "name", ""),
+                    get_value(station, "country", ""),
+                    get_value(station, "country_code", ""),
+                    get_value(station, "language", ""),
+                    as_tags(get_value(station, "tags") or []),
                     streams,
                 ))
         return result
@@ -298,28 +328,31 @@ async def main():
 
     async def load_iptv_streams(session, source_config, priority):
         raw = await fetch_streams(session, source_config["url"])
-        return [
-            make_station(
-                item.get("name") or item.get("title") or "Unknown station",
-                country=item.get("country") or "",
-                country_code=item.get("country_code") or item.get("countryCode") or "",
-                language=item.get("language") or "",
-                tags=item.get("genres") or item.get("tags") or [],
-                streams=[make_stream("iptv-org-streams", item.get("url") or "", priority=priority)],
-            )
-            for item in raw
-            if item.get("url")
-        ]
+        result = []
+        for item in as_records(raw, ("streams", "data", "results", "items")):
+            normalized = __import__("sources.normalize", fromlist=["normalize_record"]).normalize_record(item)
+            if normalized:
+                result.append(make_station(
+                    normalized["name"], normalized["country"], normalized["countryCode"],
+                    normalized["language"], normalized["tags"],
+                    [make_stream("iptv-org-streams", normalized["url"], normalized["codec"],
+                                 normalized["bitrate"], priority, normalized["sourceStationId"])],
+                ))
+        return result
 
     async def load_somafm(session, source_config, priority):
         raw = await fetch_channels(session, source_config["url"])
-        channels = raw if isinstance(raw, list) else raw.get("channels", [])
+        channels = as_records(raw, ("channels", "data", "results", "items"))
         result = []
         for channel in channels:
+            playlist_payload = channel.get("playlists") or channel.get("streams") or channel.get("urls") or []
+            playlists = as_records(playlist_payload) if not isinstance(playlist_payload, list) or (playlist_payload and isinstance(playlist_payload[0], dict)) else [
+                {"url": item} for item in playlist_payload if isinstance(item, str)
+            ]
             streams = [
-                make_stream("somafm", item.get("url", ""), item.get("format", ""),
-                            item.get("bitrate", 0), priority, channel.get("id"))
-                for item in (channel.get("playlists") or []) if item.get("url")
+                make_stream("somafm", get_value(item, "url", ""), get_value(item, "codec", ""),
+                            get_value(item, "bitrate", 0), priority, get_value(channel, "id"))
+                for item in playlists if get_value(item, "url")
             ]
             if streams:
                 result.append(make_station(
@@ -346,15 +379,15 @@ async def main():
 
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120)) as session:
         results = await asyncio.gather(
-            load_source(session, "radio-browser", config["radio_browser"], load_radio_browser),
-            load_source(session, "airwavedb", config["airwavedb"], load_airwavedb),
-            load_source(session, "icecast", config["icecast"], load_icecast),
+            load_source(session, "radio-browser", config["radio_browser"], load_radio_browser, state_dir),
+            load_source(session, "airwavedb", config["airwavedb"], load_airwavedb, state_dir),
+            load_source(session, "icecast", config["icecast"], load_icecast, state_dir),
             load_source(session, "iptv-org-radio", config["iptv_org_radio"], lambda s, c, p: load_m3u(s, "iptv-org-radio", c["url"], p)),
             load_source(session, "iptv-org-streams", config["iptv_org_streams"], load_iptv_streams),
             load_source(session, "pulham-hq", config["pulham_hq"], lambda s, c, p: load_m3u(s, "pulham-hq", c["url"], p)),
-            load_source(session, "iprd", config["iprd"], lambda s, c, p: load_repo_playlists(s, "iprd", c, p)),
+            load_source(session, "iprd", config["iprd"], lambda s, c, p: load_repo_playlists(s, "iprd", c, p), state_dir),
             load_source(session, "alon-drilich", config["alon_drilich"], lambda s, c, p: load_repo_playlists(s, "alon-drilich", c, p)),
-            load_source(session, "somafm", config["somafm"], load_somafm),
+            load_source(session, "somafm", config["somafm"], load_somafm, state_dir),
             load_source(session, "bbc-radio", config["bbc_radio"], lambda s, c, p: load_m3u(s, "bbc-radio", c["url"], p)),
         )
 
@@ -445,4 +478,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description="Build the Radsync radio catalogue")
+    parser.add_argument("--state-dir", type=Path, default=Path("state"))
+    args = parser.parse_args()
+    asyncio.run(main(state_dir=args.state_dir))
