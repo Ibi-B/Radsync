@@ -49,6 +49,12 @@ Reports are written to the private `radsync-state` branch under `identity-contin
 
 This is observability only: it never rewrites `stationUuid`, changes aggregation, or changes the published app contract. Review the first report manually before treating continuity statistics as a release acceptance signal.
 
+## Identity ambiguity diagnostics
+
+When canonical UUID assignment encounters separate aggregates with identical canonical metadata and identical provider/stream provenance, the refresh writes `state/diagnostics/identity-ambiguity.json` before failing closed. The report includes the catalogue version, a stable group fingerprint, canonical identity inputs, provisional classification, and whitelisted provider evidence (including M3U entry index/EXTINF where available). URL query strings and fragments are removed from diagnostic URLs to avoid retaining access tokens.
+
+The workflow uploads this report as a private GitHub Actions artifact (14-day retention) even when catalogue building fails, and persists it with the private `radsync-state` branch. It is never included in the Pages artifact or BeastED's published JSON contract. The report is observational: `likely_duplicate` is a clue for review, not an instruction to merge. No UUID inputs, reconciliation rules, or publication safeguards are relaxed. A successful build clears any stale ambiguity report.
+
 ## Published BeastED contract
 
 `output/current/master-index.json` points to an immutable versioned release. The versioned master index exposes `stationsUrl`, station/stream counts and genre/country/language group indexes.
