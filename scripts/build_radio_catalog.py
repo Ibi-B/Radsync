@@ -56,7 +56,8 @@ def refresh_station_sources(station):
     station["defaultSource"] = station["streams"][0]["source"] if station["streams"] else None
     grouped = {}
     for index, stream in enumerate(station["streams"]):
-        grouped.setdefault(stream["source"], []).append(index)
+        for source in stream.get("sources", [stream["source"]]):
+            grouped.setdefault(source, []).append(index)
     station["sources"] = list(grouped)
     station["sourceGroups"] = [
         {"source": source, "streamIndexes": indexes}
@@ -68,7 +69,9 @@ def make_stream(source, url, codec="", bitrate=0, priority=50, source_station_id
     quality = priority + min((bitrate or 0) / 10.0, 20.0)
     return {
         "source": source,
+        "sources": [source],
         "sourceStationId": source_station_id,
+        "sourceStationIds": [source_station_id] if source_station_id else [],
         "url": str(url or "").strip(),
         "codec": codec,
         "bitrate": bitrate,
@@ -110,10 +113,19 @@ def make_station(name, country="", country_code="", language="", tags=None, stre
 def merge_station(target, incoming):
     existing_urls = {stream["url"] for stream in target["streams"]}
 
+    existing_by_url = {stream["url"]: stream for stream in target["streams"]}
     for stream in incoming["streams"]:
-        if stream["url"] not in existing_urls:
+        existing = existing_by_url.get(stream["url"])
+        if existing is None:
             target["streams"].append(stream)
             existing_urls.add(stream["url"])
+            existing_by_url[stream["url"]] = stream
+        else:
+            existing["sources"] = sorted(set(existing.get("sources", [existing["source"]]) + stream.get("sources", [stream["source"]])))
+            existing["sourceStationIds"] = sorted(set(existing.get("sourceStationIds", []) + stream.get("sourceStationIds", [])))
+            if stream_sort_key(stream) > stream_sort_key(existing):
+                for field in ("source", "priority", "qualityScore", "codec", "bitrate"):
+                    existing[field] = stream.get(field)
 
     target.setdefault("sourceIds", {}).update(incoming.get("sourceIds", {}))
     target["country"] = target["country"] or incoming["country"]
