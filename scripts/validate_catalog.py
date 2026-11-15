@@ -15,7 +15,8 @@ def main():
 
     pointer = json.loads(pointer_path.read_text(encoding="utf-8"))
     version = pointer.get("version")
-    master_path = OUTPUT / f"v{version}" / "master-index.json"
+    version_dir = OUTPUT / f"v{version}"
+    master_path = version_dir / "master-index.json"
     if not master_path.exists():
         print(f"Missing master index for version {version}")
         return 1
@@ -28,13 +29,26 @@ def main():
         print("Catalog contains no stations")
         return 1
 
+    report_path = version_dir / "source-report.json"
+    if not report_path.exists():
+        print("Missing source report")
+        return 1
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    successful_sources = [source for source in report["sources"] if source["status"] == "ok"]
+    if not successful_sources:
+        print("No source produced a valid station list")
+        return 1
+
     for group_type in ("genres", "countries", "languages"):
-        group_file = OUTPUT / f"v{version}" / master["groups"][group_type]["url"]
+        group_file = version_dir / master["groups"][group_type]["url"]
         if not group_file.exists():
             print(f"Missing group index: {group_type}")
             return 1
 
     print(f"Validated catalog version {version} with {master['stationCount']} stations")
+    for source in report["sources"]:
+        print(f"{source['source']}: {source['status']} ({source['stationCount']} stations)")
     return 0
 
 

@@ -9,7 +9,7 @@ import aiohttp
 
 from sources.radio_browser import fetch_stations
 from sources.iptv_org import fetch_playlist, parse_m3u
-from sources.icecast import fetch_directory
+from sources.icecast import fetch_directory, parse_directory
 
 OUTPUT = Path("output")
 
@@ -65,20 +65,68 @@ def normalize_icecast(raw):
     }
 
 
+async def load_source(session, source_id, enabled, loader, normalizer):
+    if not enabled:
+        return [], {"source": source_id, "enabled": False, "status": "skipped", "stationCount": 0, "error": None}
+    try:
+        raw_items = await loader(session)
+        stations = [normalizer(item) for item in raw_items]
+        stations = [station for station in stations if station["name"] and station["streamUrl"]]
+        return stations, {
+            "source": source_id,
+            "enabled": True,
+            "status": "ok",
+            "stationCount": len(stations),
+            "error": None,
+        }
+    except Exception as error:
+        return [], {
+            "source": source_id,
+            "enabled": True,
+            "status": "failed",
+            "stationCount": 0,
+            "error": str(error),
+        }
+
+
 async def main():
     version = int(datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S"))
     version_dir = OUTPUT / f"v{version}"
-    (version_dir / "genres").mkdir(parents=True, exist_ok=True)
-    (version_dir / "countries").mkdir(parents=True, exist_ok=True)
-    (version_dir / "languages").mkdir(parents=True, exist_ok=True)
+    for directory in ("genres", "countries", "languages", "groups"):
+        (version_dir / directory).mkdir(parents=True, exist_ok=True)
 
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
-        radio_browser = await fetch_stations(session)
-        iptv_org = parse_m3u(await fetch_playlist(session))
-        await fetch_directory(session)
+    config = json.loads(Path("config/sources.json").read_text(encoding="utf-8"))
 
-    stations = [normalize_radio_browser(item) for item in radio_browser]
-    stations += [normalize_iptv_org(item) for item in iptv_org]
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120)) as session:
+        results = await asyncio.gather(
+            load_source(
+                session,
+                "radio-browser",
+                config.get("radio_browser", {}).get("enabled", False),
+                fetch_stations,
+                normalize_radio_browser,
+            ),
+            load_source(
+                session,
+                "iptv-org",
+                config.get("iptv_org", {}).get("enabled", False),
+                fetch_playlist,
+                normalize_iptv_org,
+            ),
+            load_source(
+                session,
+                "icecast",
+                config.get("icecast", {}).get("enabled", False),
+                fetch_directory,
+                normalize_icecast,
+            ),
+        )
+
+    stations = []
+    source_report = []
+    for source_stations, report in results:
+        stations.extend(source_stations)
+        source_report.append(report)
 
     stations = [station for station in stations if station["name"] and station["streamUrl"]]
     unique = {}
@@ -123,11 +171,20 @@ async def main():
     }
     (version_dir / "master-index.json").write_text(json.dumps(master, ensure_ascii=False), encoding="utf-8")
 
-    groups_dir = version_dir / "groups"
-    groups_dir.mkdir(exist_ok=True)
-    (groups_dir / "genres.json").write_text(json.dumps({"type": "genres", "version": version, "items": genres}, ensure_ascii=False), encoding="utf-8")
-    (groups_dir / "countries.json").write_text(json.dumps({"type": "countries", "version": version, "items": countries}, ensure_ascii=False), encoding="utf-8")
-    (groups_dir / "languages.json").write_text(json.dumps({"type": "languages", "version": version, "items": languages}, ensure_ascii=False), encoding="utf-8")
+    (version_dir / "groups" / "genres.json").write_text(json.dumps({"type": "genres", "version": version, "items": genres}, ensure_ascii=False), encoding="utf-8")
+    (version_dir / "groups" / "countries.json").write_text(json.dumps({"type": "countries", "version": version, "items": countries}, ensure_ascii=False), encoding="utf-8")
+    (version_dir / "groups" / "languages.json").write_text(json.dumps({"type": "languages", "version": version, "items": languages}, ensure_ascii=False), encoding="utf-8")
+
+    report = {
+        "version": version,
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "totalStations": len(stations),
+        "sources": source_report,
+    }
+    (version_dir / "source-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    if not stations:
+        raise RuntimeError("No valid stations were produced; refusing to update current catalog")
 
     current = OUTPUT / "current"
     current.mkdir(exist_ok=True)
