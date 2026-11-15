@@ -93,9 +93,15 @@ class CatalogAggregationTests(unittest.TestCase):
         self.assertTrue(first["stationUuid"])
         self.assertEqual(0, first["defaultStreamIndex"])
 
-    def test_identical_ambiguous_aggregates_fail_closed(self):
-        first = make_station("Same", streams=[make_stream("provider", "https://one.example/live", priority=50)])
-        second = make_station("Same", streams=[make_stream("provider", "https://two.example/live", priority=50)])
+    def test_indistinguishable_aggregates_fail_closed(self):
+        first = make_station(
+            "Same", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider", "https://same.example/live", priority=50, source_station_id="same-id")],
+        )
+        second = make_station(
+            "Same", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider", "https://same.example/live", priority=50, source_station_id="same-id")],
+        )
         with self.assertRaises(ValueError):
             assign_canonical_station_ids([first, second])
 
