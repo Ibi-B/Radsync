@@ -62,6 +62,24 @@ class StationIdentityContinuityTests(unittest.TestCase):
         self.assertEqual(1, report["added"])
         self.assertEqual([], report["changes"])
 
+    def test_exact_provider_match_takes_precedence_over_metadata_candidate(self):
+        old = station("old", "Example Radio", [("radio-browser", "stable")])
+        exact = station("new-exact", "Renamed Radio", [("radio-browser", "stable")])
+        weak = station("new-weak", "Example Radio")
+        report = build_continuity_report([old], [exact, weak], 1, 2)
+        self.assertEqual(1, report["changed"])
+        self.assertEqual("new-exact", report["changes"][0]["currentStationUuid"])
+        self.assertEqual(["new-weak"], report["addedStationUuids"])
+
+    def test_multiple_provider_id_targets_are_marked_ambiguous(self):
+        old = station("old", "Old Radio", [("radio-browser", "stable")])
+        new_a = station("new-a", "New Radio A", [("radio-browser", "stable")])
+        new_b = station("new-b", "New Radio B", [("radio-browser", "stable")])
+        report = build_continuity_report([old], [new_a, new_b], 1, 2)
+        self.assertEqual(1, report["ambiguousPrevious"])
+        self.assertEqual(2, report["ambiguousCurrent"])
+        self.assertFalse(any(item["automaticMatch"] for item in report["changes"]))
+
     def test_report_order_is_deterministic(self):
         old = [station("old-b", "Beta"), station("old-a", "Alpha")]
         new = [station("new-a", "Alpha"), station("new-b", "Beta")]
