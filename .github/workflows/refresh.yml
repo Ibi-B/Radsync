@@ -50,7 +50,7 @@ jobs:
 
       - name: Build catalogue using fresh or last-good provider data
         id: build_catalogue
-        run: python scripts/build_radio_catalog.py --state-dir state
+        run: python -m scripts.build_radio_catalog --state-dir state
 
       - name: Validate published catalogue
         if: ${{ steps.build_catalogue.outcome == 'success' }}
