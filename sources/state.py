@@ -66,7 +66,7 @@ def load_snapshot(state_dir, source_id):
             stations = list(ijson.items(handle, "stations.item", use_float=True))
         payload = {**metadata, "stations": stations}
         return payload if _valid_snapshot_payload(payload, source_id) else None
-    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+    except (OSError, ValueError, TypeError, json.JSONDecodeError, ijson.common.JSONError):
         return None
 
 
