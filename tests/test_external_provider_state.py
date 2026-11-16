@@ -403,5 +403,53 @@ class ImmutableObjectUploadTests(unittest.TestCase):
                 _upload_immutable(FakeClient({"sha256": "different"}), "bucket", "prefix/key", path, "abcd")
 
 
+class SnapshotStoreInjectionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_catalogue_source_loader_uses_injected_snapshot_store(self):
+        from unittest.mock import AsyncMock
+        from scripts.build_radio_catalog import load_source
+        from sources.snapshot_store import LocalFileSnapshotStore
+
+        class SpyStore:
+            def __init__(self, state_dir):
+                self.local = LocalFileSnapshotStore(state_dir)
+                self.calls = []
+
+            def verify_snapshot(self, source_id):
+                self.calls.append(("verify", source_id))
+                return self.local.verify_snapshot(source_id)
+
+            def load_snapshot(self, source_id):
+                self.calls.append(("load", source_id))
+                return self.local.load_snapshot(source_id)
+
+            def save_snapshot(self, source_id, stations):
+                self.calls.append(("save", source_id))
+                return self.local.save_snapshot(source_id, stations)
+
+            def prune_snapshots(self, source_id=None, *, apply=False):
+                self.calls.append(("prune", source_id))
+                return self.local.prune_snapshots(source_id, apply=apply)
+
+        station = {
+            "name": "Injected Store Radio",
+            "streams": [{"source": "fixture", "url": "https://injected.example/live"}],
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            store = SpyStore(temporary)
+            stations, report = await load_source(
+                None,
+                "fixture",
+                {"enabled": True, "priority": 50},
+                AsyncMock(return_value=[station]),
+                temporary,
+                snapshot_store=store,
+            )
+
+            self.assertEqual("ok", report["status"])
+            self.assertEqual("Injected Store Radio", stations[0]["name"])
+            self.assertEqual([("verify", "fixture"), ("save", "fixture")], store.calls)
+            self.assertIsNotNone(store.load_snapshot("fixture"))
+
+
 if __name__ == "__main__":
     unittest.main()
