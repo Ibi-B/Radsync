@@ -858,6 +858,14 @@ async def main(state_dir=Path("state")):
     version_dir = OUTPUT / f"v{version}"
     diagnostics_path = Path(state_dir) / "diagnostics" / "identity-ambiguity.json"
     diagnostics_path.unlink(missing_ok=True)
+    refresh_report_path = Path(state_dir) / "diagnostics" / "source-report.json"
+    _atomic_write_json(refresh_report_path, {
+        "schemaVersion": 1,
+        "catalogVersion": version,
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "buildStatus": "source-refresh-in-progress",
+        "sources": [],
+    })
 
     for directory in ("genres", "countries", "languages", "groups"):
         (version_dir / directory).mkdir(parents=True, exist_ok=True)
