@@ -429,6 +429,60 @@ def _write_json_atomic(path, payload):
     temporary.replace(path)
 
 
+def fetch_external_report(state_dir, run_id, output_path):
+    """Retrieve, checksum-verify, decompress, and JSON-validate a run report."""
+    run_id = _safe_source_id(str(run_id))
+    manifest_path = Path(state_dir) / "manifests" / "reports" / f"{run_id}.json"
+    manifest = _load_json(manifest_path)
+    if not isinstance(manifest, dict):
+        raise ExternalStateError(f"External report manifest is missing for run {run_id}")
+    if (
+        manifest.get("schemaVersion") != MANIFEST_SCHEMA_VERSION
+        or manifest.get("format") != "json-zstd"
+        or str(manifest.get("runId")) != run_id
+    ):
+        raise ExternalStateError(f"External report manifest is invalid for run {run_id}")
+
+    client, bucket, prefix = _s3_context()
+    key = manifest.get("objectKey")
+    digest = manifest.get("sha256")
+    if not key or not digest or not key.startswith(prefix + "/reports/"):
+        raise ExternalStateError("External report manifest has an invalid object pointer")
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_output = output_path.with_name(output_path.name + ".tmp")
+    try:
+        with tempfile.TemporaryDirectory(prefix="radsync-report-") as temporary:
+            compressed = Path(temporary) / "source-report.json.zst"
+            _download_verified(client, bucket, key, compressed, digest)
+            with compressed.open("rb") as source, temporary_output.open("wb") as target:
+                reader = zstandard.ZstdDecompressor().stream_reader(source)
+                try:
+                    shutil.copyfileobj(reader, target, length=1024 * 1024)
+                finally:
+                    reader.close()
+
+        with temporary_output.open("rb") as report_file:
+            events = ijson.parse(report_file)
+            first = next(events, None)
+            if not first or first[0] != "" or first[1] != "start_map":
+                raise ExternalStateError("External report is not a JSON object")
+            for _ in events:
+                pass
+        temporary_output.replace(output_path)
+    except Exception:
+        temporary_output.unlink(missing_ok=True)
+        raise
+
+    return {
+        "runId": run_id,
+        "output": str(output_path),
+        "sha256": digest,
+        "compressedBytes": manifest.get("compressedBytes"),
+    }
+
+
 def _config_by_source(config):
     mapping = {
         "radio-browser": "radio_browser",
