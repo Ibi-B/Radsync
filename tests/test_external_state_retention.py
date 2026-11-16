@@ -319,9 +319,20 @@ class RetentionLayoutTests(unittest.TestCase):
         try:
             with patch("sources.retention.base._s3_context", return_value=(
                 self.client, "fixture-bucket", "radsync/state"
-            )), patch.dict("os.environ", {"RADSYNC_DIAGNOSTICS_PREFIX": "radsync/state/diagnostics"}):
-                with self.assertRaisesRegex(retention.base.ExternalStateError, "must be separate"):
-                    retention._s3_context()
+            )):
+                for diagnostics_prefix in (
+                    "radsync/state",
+                    "radsync/state/diagnostics",
+                    "radsync",
+                ):
+                    with self.subTest(diagnostics_prefix=diagnostics_prefix):
+                        with patch.dict("os.environ", {
+                            "RADSYNC_DIAGNOSTICS_PREFIX": diagnostics_prefix
+                        }):
+                            with self.assertRaisesRegex(
+                                retention.base.ExternalStateError, "must be separate"
+                            ):
+                                retention._s3_context()
         finally:
             self.context.start()
 
