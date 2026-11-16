@@ -70,6 +70,19 @@ class PlaylistFormatTests(unittest.TestCase):
         self.assertEqual("https://radio.example/live", records[0]["stream_url"])
         self.assertEqual("GB", records[0]["country_code"])
 
+    def test_m3u_retains_playlist_entry_index_and_raw_metadata(self):
+        payload = (
+            '#EXTM3U\\n'
+            '#EXTINF:-1 tvg-id="station.one" tvg-country="GB" group-title="Jazz",Example Radio\\n'
+            'https://radio.example/live\\n'
+            '#EXTINF:-1 tvg-id="station.two" group-title="News",Second Radio\\n'
+            'https://radio.example/second\\n'
+        )
+        records = parse_m3u(payload)
+        self.assertEqual([0, 1], [item["entry_index"] for item in records])
+        self.assertEqual("Example Radio", records[0]["original_title"])
+        self.assertEqual("station.one", records[0]["raw_metadata"]["tvg-id"])
+
 
 class ProviderSnapshotTests(unittest.TestCase):
     def test_snapshot_round_trip_and_validation(self):

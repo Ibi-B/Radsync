@@ -231,6 +231,38 @@ class CatalogAggregationTests(unittest.TestCase):
         )
         self.assertIsNone(find_station_match([first, second], incoming))
 
+    def test_multiple_provider_ids_for_one_provider_are_never_overwritten(self):
+        station = make_station(
+            "Multi ID Radio", country="GB", country_code="GB", language="English",
+            streams=[
+                make_stream("radio-browser", "https://multi.example/aac", source_station_id="rb-a"),
+                make_stream("radio-browser", "https://multi.example/mp3", source_station_id="rb-b"),
+            ],
+        )
+        self.assertEqual(["rb-a", "rb-b"], station["sourceIds"]["radio-browser"])
+        incoming = make_station(
+            "Multi ID Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("radio-browser", "https://multi.example/third", source_station_id="rb-b")],
+        )
+        self.assertIs(station, find_station_match([station], incoming))
+        merge_station(station, incoming)
+        self.assertEqual(["rb-a", "rb-b"], station["sourceIds"]["radio-browser"])
+
+    def test_duplicate_endpoint_keeps_distinct_source_record_provenance(self):
+        first = make_station(
+            "Same Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-a", "https://same.example/live")],
+            identity_evidence=[{"source": "provider-a", "streamUrl": "https://same.example/live", "playlistPath": "a.m3u", "entryIndex": 2}],
+        )
+        second = make_station(
+            "Same Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-b", "https://same.example/live")],
+            identity_evidence=[{"source": "provider-b", "streamUrl": "https://same.example/live", "playlistPath": "b.m3u", "entryIndex": 9}],
+        )
+        merge_station(first, second)
+        self.assertEqual(1, len(first["streams"]))
+        self.assertEqual({"provider-a", "provider-b"}, {item["source"] for item in first["streams"][0]["sourceRecords"]})
+
 
 if __name__ == "__main__":
     unittest.main()

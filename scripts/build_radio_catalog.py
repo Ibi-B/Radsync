@@ -104,7 +104,8 @@ def make_stream(source, url, codec="", bitrate=0, priority=50, source_station_id
         "source": source,
         "sources": [source],
         "sourceStationId": source_station_id,
-        "sourceStationIds": [source_station_id] if source_station_id else [],
+        "sourceStationIds": [str(source_station_id)] if source_station_id not in (None, "") else [],
+        "sourceRecords": [],
         "url": str(url or "").strip(),
         "codec": codec,
         "bitrate": bitrate,
@@ -152,17 +153,56 @@ def make_identity_evidence(source, record=None, provider_record_id=None, source_
         "codec": str(codec or get_value(record, "codec") or "")[:80],
         "bitrate": bitrate if bitrate is not None else get_value(record, "bitrate", 0),
         "streamUrl": safe_url(stream_url or get_value(record, "url")),
+        "originalTitle": str(record.get("original_title") or raw_name or "")[:300],
+        "originalUrl": safe_url(record.get("original_url") or stream_url or get_value(record, "url")),
+        "playlistRepository": str(record.get("playlist_repository") or "")[:200],
+        "rawMetadata": record.get("raw_metadata") if isinstance(record.get("raw_metadata"), dict) else {},
+        "ingestedAt": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def _source_ids_for_station(station):
+    """Return every provider-qualified ID, accepting legacy scalar sourceIds values."""
+    values = {}
+    for source, raw_ids in (station.get("sourceIds") or {}).items():
+        ids = raw_ids if isinstance(raw_ids, (list, tuple, set)) else [raw_ids]
+        for value in ids:
+            if value not in (None, ""):
+                values.setdefault(str(source), set()).add(str(value))
+    for stream in station.get("streams", []):
+        source = str(stream.get("source") or "")
+        ids = stream.get("sourceStationIds") or (
+            [stream.get("sourceStationId")] if stream.get("sourceStationId") else []
+        )
+        for value in ids:
+            if value not in (None, ""):
+                values.setdefault(source, set()).add(str(value))
+    return {source: sorted(ids) for source, ids in sorted(values.items())}
 
 
 def make_station(name, country="", country_code="", language="", tags=None, streams=None,
                  identity_evidence=None):
     streams = [stream for stream in (streams or []) if valid_stream_url(stream.get("url"))]
     streams.sort(key=stream_sort_key, reverse=True)
-    source_ids = {
-        stream["source"]: stream["sourceStationId"]
-        for stream in streams if stream.get("sourceStationId")
-    }
+    evidence = list(identity_evidence or [
+        make_identity_evidence(
+            stream.get("source"), provider_record_id=stream.get("sourceStationId"),
+            stream_url=stream.get("url"), codec=stream.get("codec"),
+            bitrate=stream.get("bitrate"),
+        )
+        for stream in streams
+    ])
+    source_ids = _source_ids_for_station({"streams": streams})
+    for stream in streams:
+        safe_stream_url = make_identity_evidence(
+            stream.get("source"), stream_url=stream.get("url")
+        )["streamUrl"]
+        matching = [
+            item for item in evidence
+            if item.get("source") == stream.get("source")
+            and (not item.get("streamUrl") or item.get("streamUrl") == safe_stream_url)
+        ]
+        stream["sourceRecords"] = matching or stream.get("sourceRecords", [])
     station = {
         # Assigned after reconciliation, once canonical groups are known.
         "stationUuid": None,
@@ -181,14 +221,7 @@ def make_station(name, country="", country_code="", language="", tags=None, stre
         "status": "unknown",
         "lastCheckedAt": None,
         "failureCount": 0,
-        "_identityEvidence": list(identity_evidence or [
-            make_identity_evidence(
-                stream.get("source"), provider_record_id=stream.get("sourceStationId"),
-                stream_url=stream.get("url"), codec=stream.get("codec"),
-                bitrate=stream.get("bitrate"),
-            )
-            for stream in streams
-        ]),
+        "_identityEvidence": evidence,
     }
     refresh_station_sources(station)
     return station
@@ -214,11 +247,21 @@ def merge_station(target, incoming):
         else:
             existing["sources"] = sorted(set(existing.get("sources", [existing["source"]]) + stream.get("sources", [stream["source"]])))
             existing["sourceStationIds"] = sorted(set(existing.get("sourceStationIds", []) + stream.get("sourceStationIds", [])))
+            known_records = {json.dumps(item, sort_keys=True, ensure_ascii=False) for item in existing.get("sourceRecords", [])}
+            for item in stream.get("sourceRecords", []):
+                marker = json.dumps(item, sort_keys=True, ensure_ascii=False)
+                if marker not in known_records:
+                    existing.setdefault("sourceRecords", []).append(item)
+                    known_records.add(marker)
             if stream_sort_key(stream) > stream_sort_key(existing):
                 for field in ("source", "priority", "qualityScore", "codec", "bitrate"):
                     existing[field] = stream.get(field)
 
-    target.setdefault("sourceIds", {}).update(incoming.get("sourceIds", {}))
+    merged_ids = _source_ids_for_station(target)
+    incoming_ids = _source_ids_for_station(incoming)
+    for source, ids in incoming_ids.items():
+        merged_ids[source] = sorted(set(merged_ids.get(source, []) + ids))
+    target["sourceIds"] = merged_ids
     target["country"] = target["country"] or incoming["country"]
     target["countryCode"] = target["countryCode"] or incoming["countryCode"]
     target["language"] = target["language"] or incoming["language"]
@@ -252,17 +295,17 @@ def find_station_match(candidates, incoming):
     # ambiguous prevents those variants from being reconciled. Do not use a
     # stream URL as identity: URLs are variants, not station identifiers.
     incoming_ids = {
-        (str(source), str(source_id))
-        for source, source_id in incoming.get("sourceIds", {}).items()
-        if source_id not in (None, "")
+        (source, source_id)
+        for source, ids in _source_ids_for_station(incoming).items()
+        for source_id in ids
     }
     if incoming_ids:
         exact_matches = [
             station for station in compatible
             if incoming_ids.intersection(
-                (str(source), str(source_id))
-                for source, source_id in station.get("sourceIds", {}).items()
-                if source_id not in (None, "")
+                (source, source_id)
+                for source, ids in _source_ids_for_station(station).items()
+                for source_id in ids
             )
         ]
         if len(exact_matches) == 1:
@@ -575,29 +618,33 @@ async def main(state_dir=Path("state")):
         async with session.get(url, headers={"User-Agent": "Radsync/1.0"}) as response:
             response.raise_for_status()
             raw = parse_m3u(await response.text())
-        return [
-            make_station(
-                item["name"],
-                country=item.get("country", ""),
+        result = []
+        for item in raw:
+            evidence_record = {
+                **item, "id": item.get("station_id"),
+                "original_title": item.get("name"),
+                "original_url": item.get("stream_url"),
+                "raw_metadata": item.get("attributes", {}),
+            }
+            evidence = make_identity_evidence(
+                source_id, evidence_record, item.get("station_id"), url,
+                playlist_path=url, entry_index=item.get("entry_index"),
+                raw_extinf=item.get("raw_extinf"), stream_url=item.get("stream_url"),
+                codec=item.get("attributes", {}).get("tvg-audio"),
+            )
+            result.append(make_station(
+                item["name"], country=item.get("country", ""),
                 country_code=item.get("attributes", {}).get("tvg-country-code", ""),
                 language=item.get("language", ""),
                 tags=item.get("genres") or [source_id],
                 streams=[make_stream(
                     source_id, item["stream_url"],
                     item.get("attributes", {}).get("tvg-audio", ""),
-                    priority=priority,
-                    source_station_id=item.get("station_id"),
+                    priority=priority, source_station_id=item.get("station_id"),
                 )],
-                identity_evidence=[make_identity_evidence(
-                    source_id, {"name": item.get("name"), "id": item.get("station_id"),
-                                "tags": item.get("genres"), "codec": item.get("attributes", {}).get("tvg-audio")},
-                    item.get("station_id"), url, playlist_path=url,
-                    entry_index=item.get("entry_index"), raw_extinf=item.get("raw_extinf"),
-                    stream_url=item.get("stream_url"), codec=item.get("attributes", {}).get("tvg-audio"),
-                )],
-            )
-            for item in raw
-        ]
+                identity_evidence=[evidence],
+            ))
+        return result
 
     async def load_iptv_streams(session, source_config, priority):
         raw = await fetch_streams(session, source_config["url"])
@@ -657,14 +704,28 @@ async def main(state_dir=Path("state")):
             source_config["repoApiUrl"],
             source_config["rawBaseUrl"],
         )
-        return [
-            make_station(
-                item["name"],
-                tags=[],
-                streams=[make_stream(source_id, item["stream_url"], priority=priority)],
+        result = []
+        for item in raw:
+            evidence_record = {
+                **item, "id": item.get("station_id"),
+                "original_title": item.get("name"),
+                "original_url": item.get("stream_url"),
+                "raw_metadata": item.get("attributes", {}),
+            }
+            evidence = make_identity_evidence(
+                source_id, evidence_record, item.get("station_id"),
+                item.get("playlist_url"), playlist_path=item.get("playlist_path"),
+                entry_index=item.get("entry_index"), raw_extinf=item.get("raw_extinf"),
+                stream_url=item.get("stream_url"),
             )
-            for item in raw
-        ]
+            result.append(make_station(
+                item["name"], country=item.get("country", ""),
+                language=item.get("language", ""), tags=item.get("genres") or [],
+                streams=[make_stream(source_id, item["stream_url"], priority=priority,
+                                     source_station_id=item.get("station_id"))],
+                identity_evidence=[evidence],
+            ))
+        return result
 
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120)) as session:
         results = await asyncio.gather(
