@@ -103,7 +103,9 @@ class ExternalSnapshotArchiveTests(unittest.TestCase):
             _create_archive(state_dir / "sources" / "iprd.json", archive, "iprd", {})
             decompressor = zstandard.ZstdDecompressor()
             with archive.open("rb") as source:
-                payload = decompressor.decompress(source.read()).decode("utf-8")
+                reader = decompressor.stream_reader(source)
+                payload = reader.read().decode("utf-8")
+                reader.close()
             lines = payload.splitlines()
             self.assertEqual("footer", json.loads(lines[-1])["recordType"])
             compressor = zstandard.ZstdCompressor()
