@@ -66,7 +66,7 @@ def load_snapshot(state_dir, source_id):
             stations = list(ijson.items(handle, "stations.item", use_float=True))
         payload = {**metadata, "stations": stations}
         return payload if _valid_snapshot_payload(payload, source_id) else None
-    except (OSError, ValueError, TypeError, json.JSONDecodeError, ijson.common.JSONError):
+    except (OSError, ValueError, TypeError, json.JSONDecodeError, ijson.common.JSONError, ijson.common.IncompleteJSONError):
         return None
 
 
@@ -185,7 +185,7 @@ def _validate_snapshot_file(path, expected_source):
         return False
     count = 0
     with path.open("rb") as handle:
-        for station in ijson.items(handle, "stations.item"):
+        for station in ijson.items(handle, "stations.item", use_float=True):
             if not isinstance(station, dict) or not station.get("name"):
                 return False
             streams = station.get("streams")
@@ -214,6 +214,6 @@ def validate_state(state_dir):
         try:
             if not _validate_snapshot_file(path, path.stem):
                 issues.append(f"{path.name}: unsupported schema or invalid provider snapshot")
-        except (OSError, ValueError, TypeError, json.JSONDecodeError, ijson.common.JSONError):
+        except (OSError, ValueError, TypeError, json.JSONDecodeError, ijson.common.JSONError, ijson.common.IncompleteJSONError):
             issues.append(f"{path.name}: unreadable JSON")
     return not issues, issues
