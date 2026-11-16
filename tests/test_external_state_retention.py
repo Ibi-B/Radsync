@@ -134,7 +134,7 @@ class RetentionLayoutTests(unittest.TestCase):
         # The old current remains available until the manifest is known to be
         # pushed. Finalization then moves it out of current/ by deleting the
         # superseded source key after checking its previous/ replacement.
-        finalized = retention.finalize_external_rotation(self.state_dir)
+        finalized = retention.finalize_external_rotation(self.state_dir, manifest_pushed=True)
         self.assertGreaterEqual(finalized["finalized"], 1)
         self.assertNotIn(first_current, self.client.objects)
         self.assertIn(second_previous, self.client.objects)
@@ -154,7 +154,7 @@ class RetentionLayoutTests(unittest.TestCase):
         self.assertIn(third_previous, self.client.objects)
         self.assertIn(third_current, self.client.objects)
 
-        retention.finalize_external_rotation(self.state_dir)
+        retention.finalize_external_rotation(self.state_dir, manifest_pushed=True)
         self.assertNotIn(old_previous, self.client.objects)
         self.assertIn(archive_keys[0], self.client.objects)
         self.assertIn(third_current, self.client.objects)
@@ -174,10 +174,20 @@ class RetentionLayoutTests(unittest.TestCase):
         # bytes. Finalization must hash the download, not trust HEAD metadata.
         self.client.objects[replacement]["body"] = b"corrupt replacement payload"
         with self.assertRaisesRegex(retention.base.ExternalStateError, "checksum mismatch"):
-            retention.finalize_external_rotation(self.state_dir)
+            retention.finalize_external_rotation(self.state_dir, manifest_pushed=True)
 
         self.assertIn(old_current, self.client.objects)
         self.assertIn(replacement, self.client.objects)
+        self.assertIn("rotationCleanup", self._manifest())
+
+    def test_rotation_finalization_requires_manifest_push_confirmation(self):
+        self._publish("Version One", "1")
+        self._publish("Version Two", "2")
+        manifest = self._manifest()
+        old_current = manifest["rotationCleanup"][0]["deleteKey"]
+        with self.assertRaisesRegex(retention.base.ExternalStateError, "manifest commit was pushed"):
+            retention.finalize_external_rotation(self.state_dir)
+        self.assertIn(old_current, self.client.objects)
         self.assertIn("rotationCleanup", self._manifest())
 
     def test_failed_candidate_verification_does_not_change_current_or_previous(self):
