@@ -338,6 +338,7 @@ def merge_station(target, incoming):
         if tag not in target["tags"]:
             target["tags"].append(tag)
 
+    _merge_station_provenance_status(target, incoming)
     refresh_station_sources(target)
 
 
@@ -515,9 +516,188 @@ def assign_canonical_station_ids(stations, diagnostic_path=None, catalog_version
     return stations
 
 
+
+PLAYLIST_PROVENANCE_SOURCES = {"iprd", "alon-drilich"}
+PROVENANCE_STATUSES = (
+    "fresh",
+    "restored-last-good",
+    "legacy-incomplete-provenance",
+)
+
+
+def _atomic_write_json(path, payload):
+    """Atomically persist a diagnostic report without exposing a partial JSON file."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    temporary.replace(path)
+
+
+def _station_provenance_records(station, source_id):
+    """Collect de-duplicated evidence for one provider from a station snapshot."""
+    candidates = list(station.get("_identityEvidence") or [])
+    candidates.extend(
+        record
+        for stream in station.get("streams", [])
+        for record in stream.get("sourceRecords", [])
+    )
+    records = []
+    seen = set()
+    for record in candidates:
+        if not isinstance(record, dict) or str(record.get("source") or "") != source_id:
+            continue
+        marker = json.dumps(record, sort_keys=True, ensure_ascii=False)
+        if marker not in seen:
+            seen.add(marker)
+            records.append(record)
+    return records
+
+
+def _has_complete_provenance(station, source_id):
+    """Check the evidence actually present; never synthesize missing provenance."""
+    records = _station_provenance_records(station, source_id)
+    if not records:
+        return False
+
+    if source_id in PLAYLIST_PROVENANCE_SOURCES:
+        required = (
+            "source",
+            "sourceUrl",
+            "playlistRepository",
+            "playlistPath",
+            "rawExtinf",
+            "originalTitle",
+            "originalUrl",
+            "streamUrl",
+            "ingestedAt",
+        )
+        for record in records:
+            if any(record.get(field) in (None, "") for field in required):
+                return False
+            if record.get("entryIndex") is None:
+                return False
+        return True
+
+    required = ("source", "streamUrl", "originalUrl", "ingestedAt")
+    return all(
+        not any(record.get(field) in (None, "") for field in required)
+        for record in records
+    )
+
+
+def _snapshot_provenance_status(station, source_id):
+    return (
+        "restored-last-good"
+        if _has_complete_provenance(station, source_id)
+        else "legacy-incomplete-provenance"
+    )
+
+
+def _refresh_station_provenance_status(station):
+    statuses = station.get("_provenanceStatusBySource") or {}
+    rank = {
+        "fresh": 0,
+        "restored-last-good": 1,
+        "legacy-incomplete-provenance": 2,
+    }
+    station["_provenanceStatus"] = max(
+        statuses.values(),
+        key=lambda status: rank.get(status, 2),
+        default="legacy-incomplete-provenance",
+    )
+
+
+def _set_station_provenance_status(station, source_id, status):
+    statuses = station.setdefault("_provenanceStatusBySource", {})
+    statuses[source_id] = status
+    _refresh_station_provenance_status(station)
+
+
+def _merge_station_provenance_status(target, incoming):
+    statuses = target.setdefault("_provenanceStatusBySource", {})
+    incoming_statuses = incoming.get("_provenanceStatusBySource") or {}
+    rank = {
+        "fresh": 0,
+        "restored-last-good": 1,
+        "legacy-incomplete-provenance": 2,
+    }
+    for source_id, status in incoming_statuses.items():
+        current = statuses.get(source_id)
+        if current is None or rank.get(status, 2) > rank.get(current, 2):
+            statuses[source_id] = status
+    _refresh_station_provenance_status(target)
+
+
+def _source_station_provenance_report(station, source_id):
+    records = _station_provenance_records(station, source_id)
+    source_ids = (station.get("sourceIds") or {}).get(source_id, [])
+    return {
+        "stationName": station.get("name", ""),
+        "provenanceStatus": (station.get("_provenanceStatusBySource") or {}).get(
+            source_id, "legacy-incomplete-provenance"
+        ),
+        "streamCount": len(station.get("streams", [])),
+        "providerStationIds": source_ids if isinstance(source_ids, list) else [source_ids],
+        "sourceRecords": [
+            {
+                field: record.get(field)
+                for field in (
+                    "source",
+                    "providerRecordId",
+                    "providerStationUuid",
+                    "sourceUrl",
+                    "playlistRepository",
+                    "playlistPath",
+                    "entryIndex",
+                    "rawExtinf",
+                    "originalTitle",
+                    "originalUrl",
+                    "streamUrl",
+                    "rawMetadata",
+                    "ingestedAt",
+                )
+                if field in record
+            }
+            for record in records
+        ],
+        "ingestionTimestamps": sorted({
+            record.get("ingestedAt")
+            for record in records
+            if record.get("ingestedAt")
+        }),
+    }
+
+
+def _enrich_source_report(report, stations):
+    source_id = report.get("source", "")
+    counts = {status: 0 for status in PROVENANCE_STATUSES}
+    station_reports = []
+    for station in stations:
+        status = (station.get("_provenanceStatusBySource") or {}).get(
+            source_id, "legacy-incomplete-provenance"
+        )
+        if status not in counts:
+            status = "legacy-incomplete-provenance"
+        counts[status] += 1
+        station_reports.append(_source_station_provenance_report(station, source_id))
+    report["provenanceStatusCounts"] = counts
+    report["stationProvenance"] = station_reports
+    report["freshStationCount"] = counts["fresh"]
+    report["restoredLastGoodStationCount"] = counts["restored-last-good"]
+    report["legacyIncompleteProvenanceStationCount"] = counts[
+        "legacy-incomplete-provenance"
+    ]
+    return report
+
+
 async def load_source(session, source_id, config, loader, state_dir):
     enabled = config.get("enabled", False)
     priority = config.get("priority", 50)
+    ingestion_started_at = datetime.now(timezone.utc).isoformat()
 
     if not enabled:
         return [], {
@@ -525,6 +705,9 @@ async def load_source(session, source_id, config, loader, state_dir):
             "enabled": False,
             "status": "skipped",
             "stationCount": 0,
+            "snapshot": "not-loaded",
+            "ingestionStartedAt": ingestion_started_at,
+            "ingestionCompletedAt": datetime.now(timezone.utc).isoformat(),
             "error": None,
         }
 
@@ -537,6 +720,9 @@ async def load_source(session, source_id, config, loader, state_dir):
             if station.get("name") and station.get("streams")
             and any(valid_stream_url(stream.get("url")) for stream in station.get("streams", []))
         ]
+        for station in stations:
+            _set_station_provenance_status(station, source_id, "fresh")
+
         if playlist_refresh:
             minimum_coverage = playlist_refresh.get("minimumCoverageRatio", 0.8)
             if playlist_refresh.get("coverageRatio", 1.0) < minimum_coverage:
@@ -552,9 +738,6 @@ async def load_source(session, source_id, config, loader, state_dir):
                     raise ValueError("A failed playlist has no path; cannot safely account for its prior records")
                 incomplete_paths.add(path)
             for item in playlist_refresh.get("skippedPlaylists", []):
-                # Only a future source-specific, explicitly validated empty
-                # marker may exempt a playlist. The current M3U adapter emits no
-                # such classification; unknown/invalid skips retain old data.
                 if item.get("classification") == "valid-empty" or item.get("validEmpty") is True:
                     continue
                 path = item.get("path")
@@ -598,30 +781,33 @@ async def load_source(session, source_id, config, loader, state_dir):
                 if not retained_by_key:
                     raise ValueError(
                         "No previous records were retained for incomplete playlists; "
-                        "retaining the full previous provider snapshot"
+                        "retaining the full last-good provider snapshot"
                     )
 
-                # Retain every previous station associated with each incomplete
-                # path. A single unmapped path aborts this partial refresh and the
-                # exception handler restores the entire last-good snapshot.
+                for station in retained_by_key.values():
+                    _set_station_provenance_status(
+                        station, source_id, _snapshot_provenance_status(station, source_id)
+                    )
                 stations.extend(retained_by_key.values())
 
         if not stations:
             raise ValueError("Source returned no usable stations; protecting its last-good snapshot")
         save_snapshot(state_dir, source_id, stations)
+        completed_at = datetime.now(timezone.utc).isoformat()
+        partial = bool(playlist_refresh and (
+            playlist_refresh.get("failed") or playlist_refresh.get("unparseable")
+            or playlist_refresh.get("skippedPlaylists")
+        ))
         return stations, {
             "source": source_id,
             "enabled": True,
-            "status": "partial" if playlist_refresh and (
-                playlist_refresh.get("failed") or playlist_refresh.get("unparseable")
-                or playlist_refresh.get("skippedPlaylists")
-            ) else "ok",
+            "status": "partial" if partial else "ok",
             "stationCount": len(stations),
-            "snapshot": "refreshed-with-last-good-playlists" if playlist_refresh and (
-                playlist_refresh.get("failed") or playlist_refresh.get("unparseable")
-                or playlist_refresh.get("skippedPlaylists")
-            ) else "refreshed",
+            "snapshot": "refreshed-with-last-good-playlists" if partial else "refreshed",
+            "snapshotStatus": "refreshed-with-last-good-playlists" if partial else "refreshed",
             "playlistRefresh": playlist_refresh,
+            "ingestionStartedAt": ingestion_started_at,
+            "ingestionCompletedAt": completed_at,
             "error": None,
         }
     except Exception as error:
@@ -630,6 +816,9 @@ async def load_source(session, source_id, config, loader, state_dir):
         if snapshot:
             restored_stations = snapshot["stations"]
             for station in restored_stations:
+                _set_station_provenance_status(
+                    station, source_id, _snapshot_provenance_status(station, source_id)
+                )
                 for stream in station.get("streams", []):
                     try:
                         bitrate = max(0, int(stream.get("bitrate", 0) or 0))
@@ -644,8 +833,11 @@ async def load_source(session, source_id, config, loader, state_dir):
                 "status": "stale",
                 "stationCount": len(snapshot["stations"]),
                 "snapshot": "last-good",
+                "snapshotStatus": "restored-last-good",
                 "snapshotUpdatedAt": snapshot.get("updatedAt"),
                 "playlistRefresh": playlist_refresh,
+                "ingestionStartedAt": ingestion_started_at,
+                "ingestionCompletedAt": datetime.now(timezone.utc).isoformat(),
                 "error": str(error),
             }
         return [], {
@@ -654,16 +846,26 @@ async def load_source(session, source_id, config, loader, state_dir):
             "status": "failed",
             "stationCount": 0,
             "snapshot": "unavailable",
+            "snapshotStatus": "unavailable",
             "playlistRefresh": playlist_refresh,
+            "ingestionStartedAt": ingestion_started_at,
+            "ingestionCompletedAt": datetime.now(timezone.utc).isoformat(),
             "error": str(error),
         }
-
 
 async def main(state_dir=Path("state")):
     version = int(datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f"))
     version_dir = OUTPUT / f"v{version}"
     diagnostics_path = Path(state_dir) / "diagnostics" / "identity-ambiguity.json"
     diagnostics_path.unlink(missing_ok=True)
+    refresh_report_path = Path(state_dir) / "diagnostics" / "source-report.json"
+    _atomic_write_json(refresh_report_path, {
+        "schemaVersion": 1,
+        "catalogVersion": version,
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "buildStatus": "source-refresh-in-progress",
+        "sources": [],
+    })
 
     for directory in ("genres", "countries", "languages", "groups"):
         (version_dir / directory).mkdir(parents=True, exist_ok=True)
@@ -899,9 +1101,10 @@ async def main(state_dir=Path("state")):
 
     stations_by_name = {}
     source_report = []
+    refresh_report_path = Path(state_dir) / "diagnostics" / "source-report.json"
 
     for source_stations, report in results:
-        source_report.append(report)
+        source_report.append(_enrich_source_report(report, source_stations))
         for station in source_stations:
             if not station["name"] or not station["streams"] or not station["normalizedName"]:
                 continue
@@ -913,12 +1116,42 @@ async def main(state_dir=Path("state")):
                 candidates.append(station)
 
     stations = [station for candidates in stations_by_name.values() for station in candidates]
-    assign_canonical_station_ids(
-        stations, diagnostic_path=diagnostics_path, catalog_version=version
-    )
-    # Diagnostic provenance is private state only; never leak it into the published schema.
+    refresh_report = {
+        "schemaVersion": 1,
+        "catalogVersion": version,
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "buildStatus": "identity-assignment-pending",
+        "providerStationCount": sum(len(source_stations) for source_stations, _ in results),
+        "candidateStationCount": len(stations),
+        "candidateStreamCount": sum(len(station.get("streams", [])) for station in stations),
+        "sources": source_report,
+    }
+    # Persist source and per-station provenance before canonical identity assignment.
+    _atomic_write_json(refresh_report_path, refresh_report)
+    try:
+        assign_canonical_station_ids(
+            stations, diagnostic_path=diagnostics_path, catalog_version=version
+        )
+    except Exception as error:
+        refresh_report["buildStatus"] = "failed"
+        refresh_report["failedStage"] = "canonical-identity-assignment"
+        refresh_report["failedAt"] = datetime.now(timezone.utc).isoformat()
+        refresh_report["error"] = {
+            "type": type(error).__name__,
+            "message": str(error),
+        }
+        _atomic_write_json(refresh_report_path, refresh_report)
+        raise
+
+    refresh_report["buildStatus"] = "identity-assignment-succeeded"
+    refresh_report["identityAssignmentCompletedAt"] = datetime.now(timezone.utc).isoformat()
+    _atomic_write_json(refresh_report_path, refresh_report)
+
+    # Diagnostic provenance and reporting-only labels never enter the public station schema.
     for station in stations:
         station.pop("_identityEvidence", None)
+        station.pop("_provenanceStatus", None)
+        station.pop("_provenanceStatusBySource", None)
 
     def write_group(directory, groups):
         items = []
@@ -968,12 +1201,22 @@ async def main(state_dir=Path("state")):
             encoding="utf-8",
         )
 
+    refresh_report["buildStatus"] = "catalogue-built"
+    refresh_report["catalogueBuiltAt"] = datetime.now(timezone.utc).isoformat()
+    refresh_report["totalStations"] = len(stations)
+    refresh_report["totalStreams"] = master["streamCount"]
+    _atomic_write_json(refresh_report_path, refresh_report)
+
+    public_source_report = [
+        {key: value for key, value in item.items() if key != "stationProvenance"}
+        for item in source_report
+    ]
     report = {
         "version": version,
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "totalStations": len(stations),
         "totalStreams": master["streamCount"],
-        "sources": source_report,
+        "sources": public_source_report,
     }
     (version_dir / "source-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 

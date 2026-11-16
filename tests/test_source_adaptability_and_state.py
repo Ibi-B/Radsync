@@ -2,14 +2,14 @@ import json
 import aiohttp
 import tempfile
 import unittest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 from pathlib import Path
 
 from sources.normalize import as_records, get_value, normalize_record, as_tags
 from sources.state import load_snapshot, save_snapshot, validate_state
 from sources.m3u import parse_m3u
 from sources.github_playlists import fetch_repository_playlists
-from scripts.build_radio_catalog import load_source
+from scripts.build_radio_catalog import _enrich_source_report, load_source
 from sources.icecast import parse_directory
 
 
@@ -141,6 +141,84 @@ class RepositoryPlaylistRefreshTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(0.8, report["coverageRatio"])
         self.assertEqual("stations/missing.m3u", report["failedPlaylists"][0]["path"])
         self.assertIn("stations/one.m3u", {record["playlist_path"] for record in records})
+
+
+    async def test_retrieval_parse_and_record_production_coverage_are_independent(self):
+        tree = {"tree": [
+            {"path": f"stations/{name}.m3u", "type": "blob"}
+            for name in ("retrieval-failed", "parse-failed", "empty", "productive")
+        ]}
+
+        class FakeResponse:
+            def __init__(self, *, payload=None, body="", status=200):
+                self.payload, self.body, self.status = payload, body, status
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return False
+
+            def raise_for_status(self):
+                if self.status >= 400:
+                    class FakeHttpError(aiohttp.ClientError):
+                        def __init__(self, status):
+                            self.status = status
+
+                        def __str__(self):
+                            return "fixture HTTP error"
+
+                    raise FakeHttpError(self.status)
+
+            async def json(self, content_type=None):
+                return self.payload
+
+            async def text(self):
+                return self.body
+
+        class FakeSession:
+            def get(self, url, headers=None):
+                if "api.github" in url:
+                    return FakeResponse(payload=tree)
+                if url.endswith("retrieval-failed.m3u"):
+                    return FakeResponse(status=404)
+                return FakeResponse(body=url.rsplit("/", 1)[-1])
+
+        def parse_fixture(body, base_url=""):
+            if body == "parse-failed.m3u":
+                raise ValueError("malformed fixture")
+            if body == "empty.m3u":
+                return []
+            return [{
+                "name": "Productive Radio",
+                "stream_url": "https://radio.example/live",
+                "attributes": {},
+            }]
+
+        report = {}
+        with patch("sources.github_playlists.parse_m3u", side_effect=parse_fixture), patch("sources.github_playlists.MIN_PLAYLIST_COVERAGE", 0.0):
+            records = await fetch_repository_playlists(
+                FakeSession(), "https://api.github.example/tree",
+                "https://raw.example/org/repo/main", report=report,
+            )
+
+        self.assertEqual(1, len(records))
+        self.assertEqual(4, report["discovered"])
+        self.assertEqual(3, report["retrieved"])
+        self.assertEqual(1, report["retrievalFailed"])
+        self.assertEqual(2, report["parsedSuccessfully"])
+        self.assertEqual(1, report["parseFailed"])
+        self.assertEqual(1, report["parsedWithoutUsableRecords"])
+        self.assertEqual(1, report["recordProducingPlaylists"])
+        self.assertEqual(1, report["recordsProduced"])
+        self.assertEqual(0.75, report["coverageRatio"])
+        self.assertEqual(0.6667, report["parseCoverageRatio"])
+        self.assertEqual(0.3333, report["recordProductionCoverageRatio"])
+        self.assertEqual(
+            {"parse-failed", "no-usable-records"},
+            {item["classification"] for item in report["skippedPlaylists"]},
+        )
+
 
 
 class ProviderSnapshotTests(unittest.TestCase):
@@ -285,6 +363,112 @@ class SourceFallbackTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(["Saved Station"], [station["name"] for station in stations])
         self.assertEqual("stale", report["status"])
         self.assertEqual(0.4, report["playlistRefresh"]["coverageRatio"])
+
+
+    async def test_fresh_station_is_marked_and_report_keeps_ingestion_timestamp(self):
+        timestamp = "2026-11-16T10:00:00+00:00"
+        station = {
+            "name": "Fresh Station",
+            "streams": [{
+                "source": "fixture",
+                "url": "https://fresh.example/live",
+            }],
+            "_identityEvidence": [{
+                "source": "fixture",
+                "streamUrl": "https://fresh.example/live",
+                "originalUrl": "https://fresh.example/live",
+                "ingestedAt": timestamp,
+            }],
+        }
+
+        with tempfile.TemporaryDirectory() as temporary:
+            stations, report = await load_source(
+                None, "fixture", {"enabled": True, "priority": 50},
+                AsyncMock(return_value=[station]), temporary,
+            )
+
+        self.assertEqual("fresh", stations[0]["_provenanceStatus"])
+        self.assertEqual({"fixture": "fresh"}, stations[0]["_provenanceStatusBySource"])
+        _enrich_source_report(report, stations)
+        self.assertEqual(1, report["freshStationCount"])
+        self.assertEqual(
+            [timestamp],
+            report["stationProvenance"][0]["ingestionTimestamps"],
+        )
+        self.assertEqual(timestamp, report["stationProvenance"][0]["sourceRecords"][0]["ingestedAt"])
+
+    async def test_complete_iprd_snapshot_is_marked_restored_last_good(self):
+        timestamp = "2026-11-15T08:30:00+00:00"
+        evidence = {
+            "source": "iprd",
+            "sourceUrl": "https://raw.githubusercontent.com/iprd-org/IPRD/main/stations/a.m3u",
+            "playlistRepository": "iprd-org/IPRD",
+            "playlistPath": "stations/a.m3u",
+            "entryIndex": 0,
+            "rawExtinf": '#EXTINF:-1 tvg-id="example",Example Radio',
+            "originalTitle": "Example Radio",
+            "originalUrl": "https://radio.example/live",
+            "streamUrl": "https://radio.example/live",
+            "ingestedAt": timestamp,
+        }
+        old = {
+            "name": "Example Radio",
+            "streams": [{
+                "source": "iprd",
+                "url": "https://radio.example/live",
+                "sourceRecords": [evidence],
+            }],
+            "_identityEvidence": [evidence],
+        }
+
+        with tempfile.TemporaryDirectory() as temporary:
+            save_snapshot(temporary, "iprd", [old])
+            stations, report = await load_source(
+                None, "iprd", {"enabled": True, "priority": 80},
+                AsyncMock(side_effect=RuntimeError("upstream unavailable")), temporary,
+            )
+
+        self.assertEqual("stale", report["status"])
+        self.assertEqual("restored-last-good", stations[0]["_provenanceStatus"])
+        self.assertEqual(
+            {"iprd": "restored-last-good"},
+            stations[0]["_provenanceStatusBySource"],
+        )
+
+    async def test_legacy_iprd_snapshot_is_marked_incomplete_without_fabricating_fields(self):
+        legacy_evidence = {
+            "source": "iprd",
+            "providerRecordId": "",
+            "providerStationUuid": "",
+            "streamUrl": "https://legacy.example/live",
+            "originalUrl": "https://legacy.example/live",
+        }
+        old = {
+            "name": "Legacy IPRD Station",
+            "streams": [{
+                "source": "iprd",
+                "url": "https://legacy.example/live",
+                "sourceRecords": [legacy_evidence],
+            }],
+            "_identityEvidence": [legacy_evidence],
+        }
+
+        with tempfile.TemporaryDirectory() as temporary:
+            save_snapshot(temporary, "iprd", [old])
+            stations, report = await load_source(
+                None, "iprd", {"enabled": True, "priority": 80},
+                AsyncMock(side_effect=RuntimeError("upstream unavailable")), temporary,
+            )
+
+        self.assertEqual("stale", report["status"])
+        self.assertEqual(
+            "legacy-incomplete-provenance",
+            stations[0]["_provenanceStatus"],
+        )
+        self.assertNotIn("playlistPath", stations[0]["_identityEvidence"][0])
+        self.assertNotIn("entryIndex", stations[0]["_identityEvidence"][0])
+        self.assertNotIn("rawExtinf", stations[0]["_identityEvidence"][0])
+
 
 
 if __name__ == "__main__":

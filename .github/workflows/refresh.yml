@@ -33,6 +33,12 @@ jobs:
           fetch-depth: 1
           persist-credentials: true
 
+      # The state branch may contain a report from an earlier run. Clear it
+      # before any setup/test step so an early failure cannot upload stale data.
+      - name: Clear previous refresh report
+        id: clear_previous_refresh_report
+        run: mkdir -p state/diagnostics && rm -f state/diagnostics/source-report.json
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -111,9 +117,13 @@ jobs:
             state/identity-continuity/"$CURRENT_VERSION".json
 
       - name: Persist provider snapshots
-        if: ${{ always() && steps.state_checkout.outcome == 'success' && steps.validate_state.outcome == 'success' }}
+        if: ${{ always() && steps.state_checkout.outcome == 'success' && steps.validate_state.outcome == 'success' && steps.build_catalogue.outcome != 'skipped' }}
         run: |
           set -euo pipefail
+          if [ ! -f state/diagnostics/source-report.json ]; then
+            echo "No current-run refresh report was produced; preserving the previous provider state."
+            exit 0
+          fi
           python -m sources.state_cli validate --state-dir state
           git -C state config user.name "github-actions[bot]"
           git -C state config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -133,6 +143,15 @@ jobs:
           path: state/diagnostics/identity-ambiguity.json
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: Upload refresh report
+        if: ${{ always() && steps.state_checkout.outcome == 'success' && steps.build_catalogue.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: refresh-report-${{ github.run_id }}
+          path: state/diagnostics/source-report.json
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Upload Pages artifact
         if: ${{ steps.build_catalogue.outcome == 'success' }}
