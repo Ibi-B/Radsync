@@ -23,7 +23,7 @@ class ExternalSnapshotArchiveTests(unittest.TestCase):
     def _sample_station(self):
         evidence = {
             "source": "iprd",
-            "providerRecordId": "",
+            "providerRecordId": "provider-record-1",
             "providerStationUuid": "",
             "playlistPath": "stations/se/example.m3u",
             "entryIndex": 0,
@@ -89,7 +89,7 @@ class ExternalSnapshotArchiveTests(unittest.TestCase):
                 connection.close()
             self.assertEqual(("fresh",), station)
             self.assertEqual(
-                ("AAC", 128, None, "stations/se/example.m3u", 0, "fresh"),
+                ("AAC", 128, "provider-record-1", "stations/se/example.m3u", 0, "fresh"),
                 stream,
             )
 
@@ -133,6 +133,39 @@ class ExternalSnapshotArchiveTests(unittest.TestCase):
                 snapshot_counts(state_dir, "iprd"),
             )
             self.assertEqual((True, []), validate_state(state_dir))
+
+    def test_complete_legacy_playlist_evidence_is_classified_restored_not_fabricated(self):
+        station = self._sample_station()
+        station.pop("_provenanceStatus", None)
+        station.pop("_provenanceStatusBySource", None)
+        evidence = station["_identityEvidence"][0]
+        evidence.update({
+            "sourceUrl": "https://raw.example/IPRD/stations/se/example.m3u",
+            "playlistRepository": "iprd-org/IPRD",
+        })
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            state_dir = root / "state"
+            save_snapshot(state_dir, "iprd", [station])
+            archive = root / "iprd.jsonl.zst"
+            database = root / "staging.sqlite3"
+            _create_archive(state_dir / "sources" / "iprd.json", archive, "iprd", {})
+            _stage_archive(archive, database, "iprd")
+
+            connection = sqlite3.connect(database)
+            try:
+                station_status = connection.execute(
+                    "SELECT provenance_status FROM staged_stations WHERE provider='iprd'"
+                ).fetchone()[0]
+                stream_status = connection.execute(
+                    "SELECT provenance_status FROM staged_streams WHERE provider='iprd'"
+                ).fetchone()[0]
+            finally:
+                connection.close()
+
+        self.assertEqual("restored-last-good", station_status)
+        self.assertEqual("restored-last-good", stream_status)
 
 
 class ProviderAnomalyBoundTests(unittest.TestCase):
