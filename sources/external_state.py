@@ -30,7 +30,7 @@ from sources.state import STATE_SCHEMA_VERSION, snapshot_path
 ARCHIVE_SCHEMA_VERSION = 1
 MANIFEST_SCHEMA_VERSION = 1
 STAGING_SCHEMA = """
-CREATE TABLE staged_stations (
+CREATE TABLE IF NOT EXISTS staged_stations (
     provider TEXT NOT NULL,
     station_key TEXT NOT NULL,
     station_index INTEGER NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE staged_stations (
     provenance_status TEXT NOT NULL,
     PRIMARY KEY (provider, station_key)
 );
-CREATE TABLE staged_streams (
+CREATE TABLE IF NOT EXISTS staged_streams (
     provider TEXT NOT NULL,
     station_key TEXT NOT NULL,
     stream_index INTEGER NOT NULL,
