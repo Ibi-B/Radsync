@@ -92,7 +92,18 @@ Configure these repository Actions secrets:
 
 The credentials need permission to read, write, and inspect objects under the configured prefix. Do not make the bucket public. The repository is public, so do not place credentials, signed object URLs, or raw provider secrets in manifests or logs.
 
-Objects are stored under content-addressed keys and the workflow never intentionally overwrites an existing key. For stronger account-level immutability, enable bucket versioning and apply a bucket policy that denies object deletion and replacement for the Radsync prefix.
+Objects are stored under content-addressed keys. Uploads use the atomic S3 `If-None-Match: *` create-only condition, and a pre-existing object is accepted only after its stored SHA-256 metadata and byte length match the expected digest.
+
+### Cloudflare R2 setup
+
+R2 is a suitable S3-compatible option for this workload:
+
+- Endpoint: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`
+- Region: set `RADSYNC_S3_REGION=auto` (R2 also accepts `us-east-1` for compatibility).
+- Create an R2 API token with Object Read & Write permission, scoped to the single Radsync bucket only. Store its Access Key ID and Secret Access Key as the two GitHub Actions secrets above.
+- In the R2 bucket Settings, add a Bucket Lock rule for prefix `radsync/state/`. Use an indefinite retention rule for immutable provider snapshots and report objects. This protects against overwrites and deletes even if an object-write credential is misused.
+
+R2 implements the S3 operations used by this code, including `PutObject`, `HeadObject`, and `GetObject`. Do not assume AWS S3 Object Lock, bucket-versioning, or bucket-policy APIs are available through R2's S3-compatible API; use R2 Bucket Lock rules for retention. The repository code still enforces content-addressed keys and create-only writes independently of the bucket lock.
 
 ## Workflow behavior
 
