@@ -59,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           # Retry any post-push rotation cleanup left by an interrupted prior run.
-          python -m sources.state_cli finalize-external --state-dir state
+          python -m sources.state_cli finalize-external --state-dir state --manifest-pushed
           git -C state config user.name "github-actions[bot]"
           git -C state config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C state add --all -- manifests/providers
@@ -189,7 +189,7 @@ jobs:
 
           # Only after the manifest commit is remote may superseded objects be
           # removed from current/previous. Every replacement was verified first.
-          python -m sources.state_cli finalize-external --state-dir state
+          python -m sources.state_cli finalize-external --state-dir state --manifest-pushed
           git -C state add --all -- manifests/providers
           if ! git -C state diff --cached --quiet; then
             git -C state commit -m "Finalize Radsync snapshot rotation for run ${GITHUB_RUN_ID}"
