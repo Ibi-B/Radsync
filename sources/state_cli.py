@@ -27,6 +27,11 @@ def main():
     parser.add_argument("--output", default=None)
     parser.add_argument("--max-age-days", type=int, default=90)
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument(
+        "--manifest-pushed",
+        action="store_true",
+        help="confirm the manifest pointer commit was successfully pushed before rotation cleanup",
+    )
     args = parser.parse_args()
 
     if args.command == "validate":
@@ -54,7 +59,9 @@ def main():
                 parser.error("fetch-external-report requires --run-id and --output")
             result = fetch_external_report(args.state_dir, args.run_id, args.output)
         elif args.command == "finalize-external":
-            result = finalize_external_rotation(args.state_dir)
+            if not args.manifest_pushed:
+                parser.error("finalize-external requires --manifest-pushed")
+            result = finalize_external_rotation(args.state_dir, manifest_pushed=True)
         elif args.command == "prune-external-archive":
             result = prune_external_archive_objects(args.max_age_days, apply=args.apply)
         else:
