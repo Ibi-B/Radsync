@@ -336,5 +336,72 @@ class ExternalReportRetrievalTests(unittest.TestCase):
 
             self.assertFalse(output.exists())
 
+class ImmutableObjectUploadTests(unittest.TestCase):
+    def test_upload_uses_atomic_create_only_condition(self):
+        from botocore.exceptions import ClientError
+        from sources.external_state import _upload_immutable
+
+        class FakeClient:
+            def __init__(self):
+                self.head_calls = 0
+                self.put_args = None
+
+            def head_object(self, Bucket, Key):
+                self.head_calls += 1
+                if self.head_calls == 1:
+                    raise ClientError(
+                        {"Error": {"Code": "404"}, "ResponseMetadata": {"HTTPStatusCode": 404}},
+                        "HeadObject",
+                    )
+                return {"ContentLength": 4, "Metadata": {"sha256": "abcd"}}
+
+            def put_object(self, **kwargs):
+                self.put_args = kwargs
+
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "object.zst"
+            path.write_bytes(b"data")
+            client = FakeClient()
+            result = _upload_immutable(client, "bucket", "prefix/key", path, "abcd")
+
+        self.assertEqual(4, result)
+        self.assertEqual("*", client.put_args["IfNoneMatch"])
+        self.assertEqual("abcd", client.put_args["Metadata"]["sha256"])
+
+    def test_concurrent_create_only_conflict_accepts_only_matching_object(self):
+        from botocore.exceptions import ClientError
+        from sources.external_state import _upload_immutable
+
+        class FakeClient:
+            def __init__(self, metadata):
+                self.head_calls = 0
+                self.metadata = metadata
+
+            def head_object(self, Bucket, Key):
+                self.head_calls += 1
+                if self.head_calls == 1:
+                    raise ClientError(
+                        {"Error": {"Code": "404"}, "ResponseMetadata": {"HTTPStatusCode": 404}},
+                        "HeadObject",
+                    )
+                return {"ContentLength": 4, "Metadata": self.metadata}
+
+            def put_object(self, **kwargs):
+                raise ClientError(
+                    {"Error": {"Code": "PreconditionFailed"}, "ResponseMetadata": {"HTTPStatusCode": 412}},
+                    "PutObject",
+                )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "object.zst"
+            path.write_bytes(b"data")
+            self.assertEqual(
+                4,
+                _upload_immutable(FakeClient({"sha256": "abcd"}), "bucket", "prefix/key", path, "abcd"),
+            )
+            with self.assertRaisesRegex(ExternalStateError, "already exists with different content"):
+                _upload_immutable(FakeClient({"sha256": "different"}), "bucket", "prefix/key", path, "abcd")
+
+
 if __name__ == "__main__":
     unittest.main()
