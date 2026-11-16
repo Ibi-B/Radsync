@@ -70,6 +70,29 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual("airwavedb", station["defaultSource"])
                 self.assertEqual({"airwavedb", "radio-browser"}, set(station["sources"]))
                 self.assertEqual({"airwavedb", "radio-browser"}, {group["source"] for group in station["sourceGroups"]})
+
+                # Reporting-only provenance markers must stay out of the app-facing contract.
+                for field in (
+                    "_provenanceStatus",
+                    "_provenanceStatusBySource",
+                ):
+                    self.assertNotIn(field, station)
+                public_source_report = json.loads(
+                    (Path("output") / f"v{pointer['version']}" / "source-report.json")
+                    .read_text(encoding="utf-8")
+                )
+                self.assertTrue(all(
+                    "stationProvenance" not in source
+                    for source in public_source_report["sources"]
+                ))
+                private_refresh_report = json.loads(
+                    Path("state/diagnostics/source-report.json").read_text(encoding="utf-8")
+                )
+                self.assertTrue(any(
+                    source["stationProvenance"]
+                    for source in private_refresh_report["sources"]
+                    if source["source"] in {"airwavedb", "radio-browser"}
+                ))
             finally:
                 os.chdir(previous)
 
