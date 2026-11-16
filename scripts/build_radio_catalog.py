@@ -610,11 +610,13 @@ async def load_source(session, source_id, config, loader, state_dir):
             "source": source_id,
             "enabled": True,
             "status": "partial" if playlist_refresh and (
-                playlist_refresh.get("failed") or playlist_refresh.get("skipped")
+                playlist_refresh.get("failed") or playlist_refresh.get("unparseable")
+                or playlist_refresh.get("skippedPlaylists")
             ) else "ok",
             "stationCount": len(stations),
             "snapshot": "refreshed-with-last-good-playlists" if playlist_refresh and (
-                playlist_refresh.get("failed") or playlist_refresh.get("skipped")
+                playlist_refresh.get("failed") or playlist_refresh.get("unparseable")
+                or playlist_refresh.get("skippedPlaylists")
             ) else "refreshed",
             "playlistRefresh": playlist_refresh,
             "error": None,

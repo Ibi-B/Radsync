@@ -143,6 +143,43 @@ class PartialPlaylistPreservationTests(unittest.IsolatedAsyncioTestCase):
             station["name"] for station in stations
         })
 
+    async def test_explicit_valid_empty_path_is_not_treated_as_partial_failure(self):
+        old = {
+            "name": "Previously Listed Station",
+            "streams": [{
+                "source": "iprd", "url": "https://old.example/live",
+                "sourceRecords": [{"source": "iprd", "playlistPath": "intentionally-empty.m3u"}],
+            }],
+            "_identityEvidence": [{"source": "iprd", "playlistPath": "intentionally-empty.m3u"}],
+        }
+        async def loader(session, config, priority):
+            config["_playlistRefresh"] = {
+                "discovered": 5, "processed": 5, "retrieved": 5,
+                "succeeded": 4, "failed": 0, "skipped": 1, "validEmpty": 1,
+                "unparseable": 0, "coverageRatio": 1.0,
+                "parseCoverageRatio": 1.0, "recordProductionCoverageRatio": 0.8,
+                "minimumCoverageRatio": 0.8, "minimumParseCoverageRatio": 0.8,
+                "failedPlaylists": [], "skippedPlaylists": [],
+                "validEmptyPlaylists": [{
+                    "path": "intentionally-empty.m3u",
+                    "classification": "valid-empty",
+                }],
+            }
+            return [{
+                "name": "Fresh Station",
+                "streams": [{"source": "iprd", "url": "https://fresh.example/live"}],
+            }]
+
+        with tempfile.TemporaryDirectory() as directory:
+            save_snapshot(directory, "iprd", [old])
+            stations, report = await load_source(
+                None, "iprd", {"enabled": True, "priority": 80}, loader, directory,
+            )
+
+        self.assertEqual(["Fresh Station"], [station["name"] for station in stations])
+        self.assertEqual("ok", report["status"])
+        self.assertEqual(1, report["playlistRefresh"]["validEmpty"])
+
     async def test_explicit_valid_empty_playlist_is_not_confused_with_unparseable(self):
         tree = {"tree": [{"path": "empty.m3u", "type": "blob"}]}
 
