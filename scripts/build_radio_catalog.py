@@ -26,7 +26,7 @@ from sources.github_playlists import fetch_repository_playlists
 from sources.m3u import parse_m3u
 from sources.normalize import as_records, get_value, as_text, as_tags, normalize_record
 from sources.state import validate_provider_anomaly_bounds
-from sources.snapshot_store import LocalFileSnapshotStore
+from sources.snapshot_store import LocalFileSnapshotStore, SnapshotStore
 
 
 OUTPUT = Path("output")
@@ -694,7 +694,8 @@ def _enrich_source_report(report, stations):
     return report
 
 
-async def load_source(session, source_id, config, loader, state_dir):
+async def load_source(session, source_id, config, loader, state_dir,
+                      snapshot_store: SnapshotStore | None = None):
     enabled = config.get("enabled", False)
     priority = config.get("priority", 50)
     ingestion_started_at = datetime.now(timezone.utc).isoformat()
@@ -712,7 +713,7 @@ async def load_source(session, source_id, config, loader, state_dir):
         }
 
     playlist_refresh = None
-    snapshot_store = LocalFileSnapshotStore(state_dir)
+    snapshot_store = snapshot_store or LocalFileSnapshotStore(state_dir)
     try:
         stations = await loader(session, config, priority)
         playlist_refresh = config.pop("_playlistRefresh", None)
@@ -864,7 +865,7 @@ async def load_source(session, source_id, config, loader, state_dir):
             "error": str(error),
         }
 
-async def main(state_dir=Path("state")):
+async def main(state_dir=Path("state"), snapshot_store: SnapshotStore | None = None):
     version = int(datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f"))
     version_dir = OUTPUT / f"v{version}"
     diagnostics_path = Path(state_dir) / "diagnostics" / "identity-ambiguity.json"
@@ -1096,18 +1097,19 @@ async def main(state_dir=Path("state")):
             ))
         return result
 
+    snapshot_store = snapshot_store or LocalFileSnapshotStore(state_dir)
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120)) as session:
         results = await asyncio.gather(
-            load_source(session, "radio-browser", config["radio_browser"], load_radio_browser, state_dir),
-            load_source(session, "airwavedb", config["airwavedb"], load_airwavedb, state_dir),
-            load_source(session, "icecast", config["icecast"], load_icecast, state_dir),
-            load_source(session, "iptv-org-radio", config["iptv_org_radio"], lambda s, c, p: load_m3u(s, "iptv-org-radio", c["url"], p), state_dir),
-            load_source(session, "iptv-org-streams", config["iptv_org_streams"], load_iptv_streams, state_dir),
-            load_source(session, "pulham-hq", config["pulham_hq"], lambda s, c, p: load_m3u(s, "pulham-hq", c["url"], p), state_dir),
-            load_source(session, "iprd", config["iprd"], lambda s, c, p: load_repo_playlists(s, "iprd", c, p), state_dir),
-            load_source(session, "alon-drilich", config["alon_drilich"], lambda s, c, p: load_repo_playlists(s, "alon-drilich", c, p), state_dir),
-            load_source(session, "somafm", config["somafm"], load_somafm, state_dir),
-            load_source(session, "bbc-radio", config["bbc_radio"], lambda s, c, p: load_m3u(s, "bbc-radio", c["url"], p), state_dir),
+            load_source(session, "radio-browser", config["radio_browser"], load_radio_browser, state_dir, snapshot_store),
+            load_source(session, "airwavedb", config["airwavedb"], load_airwavedb, state_dir, snapshot_store),
+            load_source(session, "icecast", config["icecast"], load_icecast, state_dir, snapshot_store),
+            load_source(session, "iptv-org-radio", config["iptv_org_radio"], lambda s, c, p: load_m3u(s, "iptv-org-radio", c["url"], p), state_dir, snapshot_store),
+            load_source(session, "iptv-org-streams", config["iptv_org_streams"], load_iptv_streams, state_dir, snapshot_store),
+            load_source(session, "pulham-hq", config["pulham_hq"], lambda s, c, p: load_m3u(s, "pulham-hq", c["url"], p), state_dir, snapshot_store),
+            load_source(session, "iprd", config["iprd"], lambda s, c, p: load_repo_playlists(s, "iprd", c, p), state_dir, snapshot_store),
+            load_source(session, "alon-drilich", config["alon_drilich"], lambda s, c, p: load_repo_playlists(s, "alon-drilich", c, p), state_dir, snapshot_store),
+            load_source(session, "somafm", config["somafm"], load_somafm, state_dir, snapshot_store),
+            load_source(session, "bbc-radio", config["bbc_radio"], lambda s, c, p: load_m3u(s, "bbc-radio", c["url"], p), state_dir, snapshot_store),
         )
 
     stations_by_name = {}
