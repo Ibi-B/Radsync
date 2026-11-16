@@ -130,6 +130,45 @@ def _count_snapshot(path, expected_source=None):
     return metadata
 
 
+def _station_provenance_status(station, source_id):
+    """Use stored status when present; otherwise classify only observed evidence."""
+    status = (station.get("_provenanceStatusBySource") or {}).get(source_id)
+    status = status or station.get("_provenanceStatus")
+    if status in {"fresh", "restored-last-good", "legacy-incomplete-provenance"}:
+        return status
+
+    records = list(station.get("_identityEvidence") or [])
+    records.extend(
+        record
+        for stream in station.get("streams", [])
+        for record in (stream.get("sourceRecords") or [])
+    )
+    records = [
+        record for record in records
+        if isinstance(record, dict) and str(record.get("source") or "") == source_id
+    ]
+    if not records:
+        return "legacy-incomplete-provenance"
+
+    if source_id in {"iprd", "alon-drilich"}:
+        required = (
+            "source", "sourceUrl", "playlistRepository", "playlistPath",
+            "rawExtinf", "originalTitle", "originalUrl", "streamUrl", "ingestedAt",
+        )
+        complete = all(
+            all(record.get(field) not in (None, "") for field in required)
+            and record.get("entryIndex") is not None
+            for record in records
+        )
+    else:
+        required = ("source", "streamUrl", "originalUrl", "ingestedAt")
+        complete = all(
+            all(record.get(field) not in (None, "") for field in required)
+            for record in records
+        )
+    return "restored-last-good" if complete else "legacy-incomplete-provenance"
+
+
 def _canonical_station_bytes(station):
     return json.dumps(
         station, ensure_ascii=False, sort_keys=True, separators=(",", ":")
@@ -239,11 +278,7 @@ def _stage_archive(archive_file, database_file, expected_source, expected_digest
                     station_key = f"{station_count:012d}"
                     station_json = _canonical_station_bytes(station).decode("utf-8")
                     record_digest.update(station_json.encode("utf-8") + b"\n")
-                    provenance_status = (
-                        (station.get("_provenanceStatusBySource") or {}).get(expected_source)
-                        or station.get("_provenanceStatus")
-                        or "legacy-incomplete-provenance"
-                    )
+                    provenance_status = _station_provenance_status(station, expected_source)
                     connection.execute(
                         "INSERT INTO staged_stations VALUES (?, ?, ?, ?, ?)",
                         (expected_source, station_key, station_count, station_json, provenance_status),
