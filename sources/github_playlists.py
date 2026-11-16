@@ -24,7 +24,8 @@ async def fetch_repository_playlists(
         if path and kind in (None, "blob", "file") and str(path).lower().endswith((".m3u", ".m3u8")):
             playlist_paths.append(str(path))
 
-    repository_path = "/".join(part for part in urlsplit(repo_api_url).path.split("/") if part)[:200]
+    raw_parts = [part for part in urlsplit(raw_base_url).path.split("/") if part]
+    repository_path = "/".join(raw_parts[:2])[:200]
     playlists = []
     for path in sorted(set(playlist_paths)):
         playlist_url = raw_base_url.rstrip("/") + "/" + path.lstrip("/")

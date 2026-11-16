@@ -1,0 +1,55 @@
+{
+  "radio_browser": {
+    "enabled": true,
+    "url": "https://de1.api.radio-browser.info/json/stations",
+    "priority": 90
+  },
+  "airwavedb": {
+    "enabled": true,
+    "stationsUrl": "https://raw.githubusercontent.com/AirwaveDB/api/main/v1/stations.json",
+    "streamsUrl": "https://raw.githubusercontent.com/AirwaveDB/api/main/v1/streams.json",
+    "priority": 85
+  },
+  "icecast": {
+    "enabled": true,
+    "url": "http://dir.xiph.org/yp.xml",
+    "priority": 55
+  },
+  "iptv_org_radio": {
+    "enabled": true,
+    "url": "https://iptv-org.github.io/iptv/radio.m3u",
+    "priority": 65
+  },
+  "iptv_org_streams": {
+    "enabled": true,
+    "url": "https://iptv-org.github.io/api/streams.json",
+    "priority": 70
+  },
+  "pulham_hq": {
+    "enabled": true,
+    "url": "https://raw.githubusercontent.com/Pulham/Internet-Radio-HQ-URL-playlists/main/Radio%20Stations.m3u8",
+    "priority": 92
+  },
+  "iprd": {
+    "enabled": true,
+    "repoApiUrl": "https://api.github.com/repos/iprd-org/IPRD/git/trees/main?recursive=1",
+    "rawBaseUrl": "https://raw.githubusercontent.com/iprd-org/IPRD/main/",
+    "priority": 80
+  },
+  "alon_drilich": {
+    "enabled": true,
+    "repoApiUrl": "https://api.github.com/repos/AlonDrilich/radio-playlists/git/trees/main?recursive=1",
+    "rawBaseUrl": "https://raw.githubusercontent.com/AlonDrilich/radio-playlists/main/",
+    "priority": 60
+  },
+  "somafm": {
+    "enabled": true,
+    "url": "https://somafm.com/channels.json",
+    "priority": 95
+  },
+  "bbc_radio": {
+    "enabled": true,
+    "url": "https://gist.githubusercontent.com/casaper/ddec35d21a0158628fccbab7876b7ef3/raw/UK-BBC-Radio.m3u",
+    "priority": 94
+  }
+}

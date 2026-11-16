@@ -634,7 +634,7 @@ async def main(state_dir=Path("state")):
             )
             result.append(make_station(
                 item["name"], country=item.get("country", ""),
-                country_code=item.get("attributes", {}).get("tvg-country-code", ""),
+                country_code=item.get("attributes", {}).get("tvg-country-code", item.get("country_code", "")),
                 language=item.get("language", ""),
                 tags=item.get("genres") or [source_id],
                 streams=[make_stream(
@@ -720,6 +720,7 @@ async def main(state_dir=Path("state")):
             )
             result.append(make_station(
                 item["name"], country=item.get("country", ""),
+                country_code=item.get("country_code", ""),
                 language=item.get("language", ""), tags=item.get("genres") or [],
                 streams=[make_stream(source_id, item["stream_url"], priority=priority,
                                      source_station_id=item.get("station_id"))],

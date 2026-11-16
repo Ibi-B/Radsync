@@ -25,6 +25,7 @@ def parse_m3u(text: str, base_url: str = ""):
                 "name": metadata or attributes.get("tvg-name") or attributes.get("name") or "",
                 "attributes": attributes, "raw_metadata": dict(attributes),
                 "duration": duration, "country": attributes.get("tvg-country", ""),
+                "country_code": attributes.get("tvg-country-code", ""),
                 "language": attributes.get("tvg-language", ""),
                 "genres": [attributes.get("group-title", "")] if attributes.get("group-title") else [],
                 "logo": attributes.get("tvg-logo", ""), "station_id": attributes.get("tvg-id", ""),
