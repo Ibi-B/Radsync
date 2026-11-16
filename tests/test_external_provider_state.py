@@ -226,3 +226,116 @@ class ProviderAnomalyBoundTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SnapshotStoreAdapterTests(unittest.TestCase):
+    def _station(self):
+        return {
+            "name": "Adapter Radio",
+            "streams": [{"source": "fixture", "url": "https://adapter.example/live"}],
+        }
+
+    def test_local_adapter_supports_save_load_verify_and_safe_prune(self):
+        from sources.snapshot_store import LocalFileSnapshotStore, SnapshotStore
+
+        with tempfile.TemporaryDirectory() as temporary:
+            store = LocalFileSnapshotStore(temporary)
+            self.assertIsInstance(store, SnapshotStore)
+            saved = store.save_snapshot("fixture", [self._station()])
+            self.assertEqual("fixture", saved["source"])
+            self.assertEqual("Adapter Radio", store.load_snapshot("fixture")["stations"][0]["name"])
+            verified = store.verify_snapshot("fixture")
+            self.assertEqual({"stationCount": 1, "streamCount": 1}, {
+                "stationCount": verified["stationCount"],
+                "streamCount": verified["streamCount"],
+            })
+
+            temp_file = Path(temporary) / "sources" / "fixture.json.tmp"
+            temp_file.write_text("partial", encoding="utf-8")
+            preview = store.prune_snapshots("fixture")
+            self.assertEqual([str(temp_file)], preview)
+            self.assertTrue(temp_file.exists())
+            self.assertEqual(preview, store.prune_snapshots("fixture", apply=True))
+            self.assertFalse(temp_file.exists())
+            self.assertIsNotNone(store.load_snapshot("fixture"))
+
+
+class ExternalReportRetrievalTests(unittest.TestCase):
+    def test_report_pointer_download_checks_hash_then_decompresses_json(self):
+        import hashlib
+        import shutil
+        from unittest.mock import patch
+        from sources.external_state import fetch_external_report
+
+        class FakeS3:
+            def __init__(self, object_path):
+                self.object_path = object_path
+
+            def download_file(self, bucket, key, destination):
+                self.assert_pointer(bucket, key)
+                shutil.copyfile(self.object_path, destination)
+
+            @staticmethod
+            def assert_pointer(bucket, key):
+                if bucket != "fixture-bucket" or key != "radsync/state/reports/123/sha256/report.json.zst":
+                    raise AssertionError("Unexpected external report object pointer")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            state_dir = root / "state"
+            manifest_dir = state_dir / "manifests" / "reports"
+            manifest_dir.mkdir(parents=True)
+            payload = b'{"schemaVersion":1,"buildStatus":"failed","sources":[]}'
+            archive = root / "report.json.zst"
+            archive.write_bytes(zstandard.ZstdCompressor().compress(payload))
+            digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+            (manifest_dir / "123.json").write_text(json.dumps({
+                "schemaVersion": 1,
+                "format": "json-zstd",
+                "runId": "123",
+                "objectKey": "radsync/state/reports/123/sha256/report.json.zst",
+                "sha256": digest,
+                "compressedBytes": archive.stat().st_size,
+            }), encoding="utf-8")
+            fake = FakeS3(archive)
+            output = root / "retrieved" / "source-report.json"
+
+            with patch("sources.external_state._s3_context", return_value=(fake, "fixture-bucket", "radsync/state")):
+                result = fetch_external_report(state_dir, "123", output)
+
+            self.assertEqual("123", result["runId"])
+            self.assertEqual(json.loads(payload), json.loads(output.read_text(encoding="utf-8")))
+
+    def test_report_download_hash_mismatch_does_not_create_output(self):
+        import shutil
+        from unittest.mock import patch
+        from sources.external_state import ExternalStateError, fetch_external_report
+
+        class FakeS3:
+            def __init__(self, object_path):
+                self.object_path = object_path
+
+            def download_file(self, bucket, key, destination):
+                shutil.copyfile(self.object_path, destination)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            state_dir = root / "state"
+            manifest_dir = state_dir / "manifests" / "reports"
+            manifest_dir.mkdir(parents=True)
+            archive = root / "report.json.zst"
+            archive.write_bytes(zstandard.ZstdCompressor().compress(b'{"ok":true}'))
+            (manifest_dir / "123.json").write_text(json.dumps({
+                "schemaVersion": 1,
+                "format": "json-zstd",
+                "runId": "123",
+                "objectKey": "radsync/state/reports/123/sha256/report.json.zst",
+                "sha256": "0" * 64,
+            }), encoding="utf-8")
+            output = root / "retrieved" / "source-report.json"
+
+            with patch("sources.external_state._s3_context", return_value=(FakeS3(archive), "fixture-bucket", "radsync/state")):
+                with self.assertRaisesRegex(ExternalStateError, "checksum mismatch"):
+                    fetch_external_report(state_dir, "123", output)
+
+            self.assertFalse(output.exists())
