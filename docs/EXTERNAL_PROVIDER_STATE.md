@@ -2,6 +2,12 @@
 
 ## Goal and safety contract
 
+## Storage adapter interface
+
+The refresh pipeline uses the `SnapshotStore` protocol from `sources/snapshot_store.py`. Its storage-neutral operations are `save_snapshot`, `load_snapshot`, `verify_snapshot`, and `prune_snapshots`. `LocalFileSnapshotStore` implements the protocol for offline tests and the initial Git-state bootstrap.
+
+The local adapter verifies snapshots with streaming JSON parsing. Its prune operation is deliberately non-destructive by default and only targets incomplete temporary files; it never prunes a valid last-good provider snapshot. External object publication and restore are orchestrated by the S3-compatible archive service, with small manifests as the durable pointers.
+
 Radsync stores provider last-good snapshots as immutable, versioned objects in a private S3-compatible object store. The radsync-state branch stores only small manifests and diagnostic pointers. The public Pages catalogue and its BeastED contract are unchanged.
 
 The migration is two-phase:
@@ -44,6 +50,19 @@ staged_stations retains the full station JSON and station-level provenance statu
 - provenance status (fresh, restored-last-good, or legacy-incomplete-provenance).
 
 The snapshot is promoted to the local last-good JSON file only after all external provider objects in the restore batch have passed verification. The SQLite staging database is temporary and is not committed to Git.
+
+## External report retrieval
+
+A report pointer at `manifests/reports/<run-id>.json` can be used to retrieve the compressed report after its GitHub Actions artifact expires:
+
+```bash
+python -m sources.state_cli fetch-external-report \
+  --state-dir state \
+  --run-id 43910570174 \
+  --output artifacts/source-report-43910570174.json
+```
+
+The command checks the object key is under the configured report prefix, downloads and verifies the compressed SHA-256 before decompression, validates the resulting JSON stream, and atomically writes the requested output file. A mismatch or malformed report leaves any existing output untouched.
 
 ## Provider-specific anomaly bounds
 
