@@ -109,10 +109,11 @@ class RepositoryPlaylistRefreshTests(unittest.IsolatedAsyncioTestCase):
             def raise_for_status(self):
                 if self.status >= 400:
                     class FakeHttpError(aiohttp.ClientError):
-                        status = self.status
+                        def __init__(self, status):
+                            self.status = status
                         def __str__(self):
                             return "fixture HTTP error"
-                    raise FakeHttpError()
+                    raise FakeHttpError(self.status)
             async def json(self, content_type=None):
                 return self.payload
             async def text(self):
