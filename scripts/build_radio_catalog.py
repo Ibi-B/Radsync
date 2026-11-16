@@ -736,13 +736,15 @@ async def main(state_dir=Path("state")):
 
     async def load_repo_playlists(session, source_id, source_config, priority):
         playlist_refresh = {}
-        raw = await fetch_repository_playlists(
-            session,
-            source_config["repoApiUrl"],
-            source_config["rawBaseUrl"],
-            report=playlist_refresh,
-        )
-        source_config["_playlistRefresh"] = playlist_refresh
+        try:
+            raw = await fetch_repository_playlists(
+                session,
+                source_config["repoApiUrl"],
+                source_config["rawBaseUrl"],
+                report=playlist_refresh,
+            )
+        finally:
+            source_config["_playlistRefresh"] = playlist_refresh
         result = []
         for item in raw:
             evidence_record = {
