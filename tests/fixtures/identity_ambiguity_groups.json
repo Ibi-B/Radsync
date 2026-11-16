@@ -1,0 +1,1406 @@
+{
+  "source": "radsync-state diagnostics/identity-ambiguity.json",
+  "generatedAt": "2026-11-15T23:21:15.992814+00:00",
+  "catalogVersion": 20261115232041180000,
+  "evidenceLimitations": [
+    "The diagnostic predates the source-preservation PR.",
+    "Provider IDs are absent in these records.",
+    "Playlist repository/path, entry index, raw EXTINF, and original playlist metadata are absent.",
+    "Country, country code, and language are blank in the captured records.",
+    "Endpoint uniqueness below is based on exact URL strings; no URL normalization is implied."
+  ],
+  "groups": [
+    {
+      "name": "Atlantica Oldies",
+      "canonicalIdentity": [
+        "atlantica oldies",
+        "",
+        "",
+        ""
+      ],
+      "duplicateFingerprintCount": 1,
+      "records": [
+        {
+          "stationName": "Atlantica Oldies",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://radios.topymedia.com:8052/stream/;.mp3"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://radios.topymedia.com:8052/stream/;.mp3"
+            }
+          ]
+        },
+        {
+          "stationName": "Atlantica Oldies",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://radios.topymedia.com:8052/stream/;.mp3"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://radios.topymedia.com:8052/stream/;.mp3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Magic Radio",
+      "canonicalIdentity": [
+        "magic radio",
+        "",
+        "",
+        ""
+      ],
+      "duplicateFingerprintCount": 2,
+      "records": [
+        {
+          "stationName": "Magic Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "icecast",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "audio/mpeg",
+              "bitrate": 192,
+              "streamUrl": "http://mp3.magic-radio.net:80/"
+            }
+          ],
+          "streams": [
+            {
+              "source": "icecast",
+              "sourceStationIds": [],
+              "codec": "audio/mpeg",
+              "bitrate": 192,
+              "streamUrl": "http://mp3.magic-radio.net:80/"
+            }
+          ]
+        },
+        {
+          "stationName": "Magic Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "icecast",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "audio/aac",
+              "bitrate": 96,
+              "streamUrl": "http://aac.magic-radio.net:80/"
+            }
+          ],
+          "streams": [
+            {
+              "source": "icecast",
+              "sourceStationIds": [],
+              "codec": "audio/aac",
+              "bitrate": 96,
+              "streamUrl": "http://aac.magic-radio.net:80/"
+            }
+          ]
+        },
+        {
+          "stationName": "Magic Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "icecast",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "audio/mpeg",
+              "bitrate": 320,
+              "streamUrl": "http://mp3.magic-radio.net:80/320"
+            }
+          ],
+          "streams": [
+            {
+              "source": "icecast",
+              "sourceStationIds": [],
+              "codec": "audio/mpeg",
+              "bitrate": 320,
+              "streamUrl": "http://mp3.magic-radio.net:80/320"
+            }
+          ]
+        },
+        {
+          "stationName": "Magic Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "icecast",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "application/ogg",
+              "bitrate": 1000,
+              "streamUrl": "http://mp3.magic-radio.net:80/flac"
+            }
+          ],
+          "streams": [
+            {
+              "source": "icecast",
+              "sourceStationIds": [],
+              "codec": "application/ogg",
+              "bitrate": 1000,
+              "streamUrl": "http://mp3.magic-radio.net:80/flac"
+            }
+          ]
+        },
+        {
+          "stationName": "Magic Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://mp3.magic-radio.net/"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://mp3.magic-radio.net/"
+            }
+          ]
+        },
+        {
+          "stationName": "Magic Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://mp3.magic-radio.net/flac"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://mp3.magic-radio.net/flac"
+            }
+          ]
+        },
+        {
+          "stationName": "Magic Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://magicradio.ice.infomaniak.ch/magicradio-mobile.aac"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://magicradio.ice.infomaniak.ch/magicradio-mobile.aac"
+            }
+          ]
+        },
+        {
+          "stationName": "Magic Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://mp3.magic-radio.net/"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://mp3.magic-radio.net/"
+            }
+          ]
+        },
+        {
+          "stationName": "Magic Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://mp3.magic-radio.net/flac"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://mp3.magic-radio.net/flac"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Radio Panamericana",
+      "canonicalIdentity": [
+        "radio panamericana",
+        "",
+        "",
+        ""
+      ],
+      "duplicateFingerprintCount": 1,
+      "records": [
+        {
+          "stationName": "Radio Panamericana",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://stream.zeno.fm/5hfx7xfambruv"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://stream.zeno.fm/5hfx7xfambruv"
+            }
+          ]
+        },
+        {
+          "stationName": "Radio Panamericana",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://stream.zeno.fm/5hfx7xfambruv"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://stream.zeno.fm/5hfx7xfambruv"
+            }
+          ]
+        },
+        {
+          "stationName": "Radio Panamericana",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "alon-drilich",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://stream.zeno.fm/pnwpbyfambruv"
+            }
+          ],
+          "streams": [
+            {
+              "source": "alon-drilich",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://stream.zeno.fm/pnwpbyfambruv"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "J-Club Powerplay HipHop",
+      "canonicalIdentity": [
+        "j club powerplay hiphop",
+        "",
+        "",
+        ""
+      ],
+      "duplicateFingerprintCount": 1,
+      "records": [
+        {
+          "stationName": "J-Club Powerplay HipHop",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://kathy.torontocast.com:3350/"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://kathy.torontocast.com:3350/"
+            }
+          ]
+        },
+        {
+          "stationName": "J-Club Powerplay HipHop",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "alon-drilich",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://kathy.torontocast.com:3350/"
+            }
+          ],
+          "streams": [
+            {
+              "source": "alon-drilich",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://kathy.torontocast.com:3350/"
+            }
+          ]
+        },
+        {
+          "stationName": "J-Club Powerplay HipHop",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "alon-drilich",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://kathy.torontocast.com:3350/"
+            }
+          ],
+          "streams": [
+            {
+              "source": "alon-drilich",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://kathy.torontocast.com:3350/"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Capital Radio",
+      "canonicalIdentity": [
+        "capital radio",
+        "",
+        "",
+        ""
+      ],
+      "duplicateFingerprintCount": 1,
+      "records": [
+        {
+          "stationName": "Capital Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://capitalradio-live.flumotion.com/capital-radio/capitalradio.mp3"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://capitalradio-live.flumotion.com/capital-radio/capitalradio.mp3"
+            }
+          ]
+        },
+        {
+          "stationName": "Capital Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://radyo1.radyo-dinle.tc/8256/stream"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://radyo1.radyo-dinle.tc/8256/stream"
+            }
+          ]
+        },
+        {
+          "stationName": "Capital Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://capitalradio-live.flumotion.com/capital-radio/capitalradio.mp3"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://capitalradio-live.flumotion.com/capital-radio/capitalradio.mp3"
+            }
+          ]
+        },
+        {
+          "stationName": "Capital Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "alon-drilich",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://radyo1.radyo-dinle.tc/8256/stream"
+            }
+          ],
+          "streams": [
+            {
+              "source": "alon-drilich",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://radyo1.radyo-dinle.tc/8256/stream"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Radio Regenbogen Guns N' Roses",
+      "canonicalIdentity": [
+        "radio regenbogen guns n roses",
+        "",
+        "",
+        ""
+      ],
+      "duplicateFingerprintCount": 1,
+      "records": [
+        {
+          "stationName": "Radio Regenbogen Guns N' Roses",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://streams.regenbogen.de/rr-gunsnroses-128-mp3"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://streams.regenbogen.de/rr-gunsnroses-128-mp3"
+            }
+          ]
+        },
+        {
+          "stationName": "Radio Regenbogen Guns N' Roses",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://streams.regenbogen.de/rr-gunsnroses-128-mp3"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://streams.regenbogen.de/rr-gunsnroses-128-mp3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Top FM",
+      "canonicalIdentity": [
+        "top fm",
+        "",
+        "",
+        ""
+      ],
+      "duplicateFingerprintCount": 1,
+      "records": [
+        {
+          "stationName": "Top FM",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://str30.creacast.com/top_fm"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://str30.creacast.com/top_fm"
+            }
+          ]
+        },
+        {
+          "stationName": "Top FM",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://str30.creacast.com/top_fm"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://str30.creacast.com/top_fm"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Delta FM",
+      "canonicalIdentity": [
+        "delta fm",
+        "",
+        "",
+        ""
+      ],
+      "duplicateFingerprintCount": 1,
+      "records": [
+        {
+          "stationName": "Delta FM",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://deltafmboulogne.ice.infomaniak.ch/deltafmboulogne-high.mp3"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://deltafmboulogne.ice.infomaniak.ch/deltafmboulogne-high.mp3"
+            }
+          ]
+        },
+        {
+          "stationName": "Delta FM",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://deltafmboulogne.ice.infomaniak.ch/deltafmboulogne-high.mp3"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://deltafmboulogne.ice.infomaniak.ch/deltafmboulogne-high.mp3"
+            }
+          ]
+        },
+        {
+          "stationName": "Delta FM",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "alon-drilich",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://stream.rcs.revma.com/k02rmq48kxcwv"
+            }
+          ],
+          "streams": [
+            {
+              "source": "alon-drilich",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://stream.rcs.revma.com/k02rmq48kxcwv"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Métis FM",
+      "canonicalIdentity": [
+        "me tis fm",
+        "",
+        "",
+        ""
+      ],
+      "duplicateFingerprintCount": 1,
+      "records": [
+        {
+          "stationName": "Métis FM",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://str0.creacast.com/metisfm"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://str0.creacast.com/metisfm"
+            }
+          ]
+        },
+        {
+          "stationName": "Métis FM",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://str0.creacast.com/metisfm"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://str0.creacast.com/metisfm"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Radio Radio",
+      "canonicalIdentity": [
+        "radio radio",
+        "",
+        "",
+        ""
+      ],
+      "duplicateFingerprintCount": 1,
+      "records": [
+        {
+          "stationName": "Radio Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://62.210.215.26:8000/xstream"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://62.210.215.26:8000/xstream"
+            }
+          ]
+        },
+        {
+          "stationName": "Radio Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://62.210.215.26:8000/xstream"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://62.210.215.26:8000/xstream"
+            }
+          ]
+        },
+        {
+          "stationName": "Radio Radio",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://sr6.inmystream.it:18102/stream"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://sr6.inmystream.it:18102/stream"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GHERLA",
+      "canonicalIdentity": [
+        "gherla",
+        "",
+        "",
+        ""
+      ],
+      "duplicateFingerprintCount": 1,
+      "records": [
+        {
+          "stationName": "GHERLA",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://89.39.189.52:8000/"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://89.39.189.52:8000/"
+            }
+          ]
+        },
+        {
+          "stationName": "GHERLA",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://89.39.189.52:8000/"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://89.39.189.52:8000/"
+            }
+          ]
+        },
+        {
+          "stationName": "GHERLA",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "alon-drilich",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://89.39.189.52:8000/"
+            }
+          ],
+          "streams": [
+            {
+              "source": "alon-drilich",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://89.39.189.52:8000/"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "J-Pop Powerplay",
+      "canonicalIdentity": [
+        "j pop powerplay",
+        "",
+        "",
+        ""
+      ],
+      "duplicateFingerprintCount": 1,
+      "records": [
+        {
+          "stationName": "J-Pop Powerplay",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "iprd",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://kathy.torontocast.com:3560/"
+            }
+          ],
+          "streams": [
+            {
+              "source": "iprd",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "http://kathy.torontocast.com:3560/"
+            }
+          ]
+        },
+        {
+          "stationName": "J-POP Powerplay",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "alon-drilich",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://kathy.torontocast.com:3560/"
+            }
+          ],
+          "streams": [
+            {
+              "source": "alon-drilich",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://kathy.torontocast.com:3560/"
+            }
+          ]
+        },
+        {
+          "stationName": "J-Pop Powerplay",
+          "country": "",
+          "countryCode": "",
+          "language": "",
+          "providerIdentities": [],
+          "records": [
+            {
+              "source": "alon-drilich",
+              "providerStationUuid": "",
+              "providerRecordId": "",
+              "sourceUrl": "",
+              "playlistPath": "",
+              "entryIndex": null,
+              "rawName": "",
+              "rawExtinf": "",
+              "tags": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://kathy.torontocast.com:3560/"
+            }
+          ],
+          "streams": [
+            {
+              "source": "alon-drilich",
+              "sourceStationIds": [],
+              "codec": "",
+              "bitrate": 0,
+              "streamUrl": "https://kathy.torontocast.com:3560/"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

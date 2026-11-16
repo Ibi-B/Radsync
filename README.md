@@ -76,3 +76,16 @@ Pull-request validation runs offline regression tests. Scheduled/manual refresh 
 ## Known future enhancement
 
 Live stream probing and health-aware default selection are not yet implemented. Until then, “best” means highest configured ranking score, not proven currently playable. The existing alternatives remain available to BeastED regardless of the default.
+
+
+## Source preservation and identity policy
+
+Radsync distinguishes canonical station identity, playable stream identity, the upstream source record, and provider-qualified station identity. A station may have several provider IDs from one provider and many distinct stream endpoints. Provider IDs are retained as sorted arrays under sourceIds; stream-level sourceStationIds remains available for compatibility and traceability.
+
+Every published stream carries a sourceRecords array. Each observation retains its provider, provider record ID where available, source/playlist URL, repository and playlist path where applicable, zero-based playlist entry index, original title, safe original URL, raw EXTINF text, raw playlist attributes, and ingestion timestamp. When multiple providers publish the same endpoint, the endpoint may be represented once, but every distinct source-record provenance item is retained.
+
+Duplicate source records may be collapsed only when the endpoint is demonstrably the same. Different URLs, formats, bitrates, and provider observations remain available as stream alternatives. Identical names or URLs alone never prove that two station identities are the same. Name and metadata compatibility are supporting evidence only; exact provider-qualified IDs are stronger evidence. Ambiguous candidates remain separate and the existing canonical identity collision guard continues to fail closed.
+
+GitHub playlist discovery processes every playlist file returned by the repository tree. A truncated tree or failed playlist fetch is treated as an incomplete provider refresh, so the existing last-good snapshot is protected rather than silently replacing it with partial data.
+
+See docs/SOURCE_PRESERVATION_POLICY.md for the governing invariants and evidence rules.

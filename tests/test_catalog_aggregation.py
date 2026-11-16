@@ -231,6 +231,113 @@ class CatalogAggregationTests(unittest.TestCase):
         )
         self.assertIsNone(find_station_match([first, second], incoming))
 
+    def test_multiple_provider_ids_for_one_provider_are_never_overwritten(self):
+        station = make_station(
+            "Multi ID Radio", country="GB", country_code="GB", language="English",
+            streams=[
+                make_stream("radio-browser", "https://multi.example/aac", source_station_id="rb-a"),
+                make_stream("radio-browser", "https://multi.example/mp3", source_station_id="rb-b"),
+            ],
+        )
+        self.assertEqual(["rb-a", "rb-b"], station["sourceIds"]["radio-browser"])
+        incoming = make_station(
+            "Multi ID Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("radio-browser", "https://multi.example/third", source_station_id="rb-b")],
+        )
+        self.assertIs(station, find_station_match([station], incoming))
+        merge_station(station, incoming)
+        self.assertEqual(["rb-a", "rb-b"], station["sourceIds"]["radio-browser"])
+
+    def test_duplicate_endpoint_keeps_distinct_source_record_provenance(self):
+        first = make_station(
+            "Same Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-a", "https://same.example/live")],
+            identity_evidence=[{"source": "provider-a", "streamUrl": "https://same.example/live", "playlistPath": "a.m3u", "entryIndex": 2}],
+        )
+        second = make_station(
+            "Same Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-b", "https://same.example/live")],
+            identity_evidence=[{"source": "provider-b", "streamUrl": "https://same.example/live", "playlistPath": "b.m3u", "entryIndex": 9}],
+        )
+        merge_station(first, second)
+        self.assertEqual(1, len(first["streams"]))
+        self.assertEqual({"provider-a", "provider-b"}, {item["source"] for item in first["streams"][0]["sourceRecords"]})
+
+
+    def test_original_twelve_ambiguity_groups_still_fail_closed(self):
+        fixture_path = Path(__file__).parent / "fixtures" / "identity_ambiguity_groups.json"
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        self.assertEqual(12, len(fixture["groups"]))
+        self.assertEqual(39, sum(len(group["records"]) for group in fixture["groups"]))
+
+        for group in fixture["groups"]:
+            observations = [
+                (stream["source"], stream["streamUrl"])
+                for record in group["records"]
+                for stream in record.get("streams", [])
+            ]
+            counts = {}
+            for observation in observations:
+                counts[observation] = counts.get(observation, 0) + 1
+            duplicate = next(
+                (observation for observation, count in counts.items() if count > 1),
+                None,
+            )
+            self.assertIsNotNone(duplicate, group["name"])
+            source, url = duplicate
+            first = make_station(
+                group["name"], streams=[make_stream(source, url, priority=50)]
+            )
+            second = make_station(
+                group["name"], streams=[make_stream(source, url, priority=50)]
+            )
+            with self.assertRaises(ValueError, msg=group["name"]):
+                assign_canonical_station_ids([first, second])
+
+    def test_complete_playlist_provenance_survives_shared_endpoint_merge(self):
+        url = "https://shared.example/live"
+        evidence_a = {
+            "source": "provider-a", "providerRecordId": "a-1",
+            "sourceUrl": "https://raw.example/provider-a.m3u",
+            "playlistRepository": "org/provider-a",
+            "playlistPath": "stations/a.m3u", "entryIndex": 4,
+            "rawName": "Provider A title",
+            "rawExtinf": '#EXTINF:-1 tvg-id="a-1",Provider A title',
+            "originalTitle": "Provider A title", "originalUrl": url,
+            "rawMetadata": {"tvg-id": "a-1"}, "ingestedAt": "2026-11-16T00:00:00Z",
+            "streamUrl": url,
+        }
+        evidence_b = {
+            "source": "provider-b", "providerRecordId": "b-9",
+            "sourceUrl": "https://raw.example/provider-b.m3u",
+            "playlistRepository": "org/provider-b",
+            "playlistPath": "stations/b.m3u", "entryIndex": 8,
+            "rawName": "Provider B title",
+            "rawExtinf": '#EXTINF:-1 tvg-id="b-9",Provider B title',
+            "originalTitle": "Provider B title", "originalUrl": url,
+            "rawMetadata": {"tvg-id": "b-9"}, "ingestedAt": "2026-11-16T00:01:00Z",
+            "streamUrl": url,
+        }
+        first = make_station(
+            "Shared Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-a", url)],
+            identity_evidence=[evidence_a],
+        )
+        second = make_station(
+            "Shared Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-b", url)],
+            identity_evidence=[evidence_b],
+        )
+        merge_station(first, second)
+        self.assertEqual(1, len(first["streams"]))
+        records = first["streams"][0]["sourceRecords"]
+        self.assertEqual({"provider-a", "provider-b"}, {r["source"] for r in records})
+        self.assertEqual({"stations/a.m3u", "stations/b.m3u"}, {r["playlistPath"] for r in records})
+        self.assertEqual({4, 8}, {r["entryIndex"] for r in records})
+        self.assertEqual({evidence_a["rawExtinf"], evidence_b["rawExtinf"]}, {r["rawExtinf"] for r in records})
+        self.assertEqual({"Provider A title", "Provider B title"}, {r["originalTitle"] for r in records})
+        self.assertEqual({url}, {r["originalUrl"] for r in records})
+
 
 if __name__ == "__main__":
     unittest.main()

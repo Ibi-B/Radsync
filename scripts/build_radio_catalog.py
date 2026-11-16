@@ -104,7 +104,12 @@ def make_stream(source, url, codec="", bitrate=0, priority=50, source_station_id
         "source": source,
         "sources": [source],
         "sourceStationId": source_station_id,
-        "sourceStationIds": [source_station_id] if source_station_id else [],
+        "sourceStationIds": [str(source_station_id)] if source_station_id not in (None, "") else [],
+        "providerSources": (
+            {str(source): [str(source_station_id)]}
+            if source not in (None, "") and source_station_id not in (None, "") else {}
+        ),
+        "sourceRecords": [],
         "url": str(url or "").strip(),
         "codec": codec,
         "bitrate": bitrate,
@@ -152,17 +157,110 @@ def make_identity_evidence(source, record=None, provider_record_id=None, source_
         "codec": str(codec or get_value(record, "codec") or "")[:80],
         "bitrate": bitrate if bitrate is not None else get_value(record, "bitrate", 0),
         "streamUrl": safe_url(stream_url or get_value(record, "url")),
+        "originalTitle": str(record.get("original_title") or raw_name or "")[:300],
+        "originalUrl": safe_url(record.get("original_url") or stream_url or get_value(record, "url")),
+        "playlistRepository": str(record.get("playlist_repository") or "")[:200],
+        "rawMetadata": record.get("raw_metadata") if isinstance(record.get("raw_metadata"), dict) else {},
+        "ingestedAt": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def _provider_ids_for_stream(stream):
+    """Return stream IDs keyed by their original provider, never by the ranked stream source."""
+    values = {}
+    raw_mapping = stream.get("providerSources")
+    if isinstance(raw_mapping, dict):
+        for source, raw_ids in raw_mapping.items():
+            ids = raw_ids if isinstance(raw_ids, (list, tuple, set)) else [raw_ids]
+            for value in ids:
+                if value not in (None, ""):
+                    values.setdefault(str(source), set()).add(str(value))
+
+    # Source records are independently provider-attributed and can repair or
+    # enrich the explicit mapping without relying on the stream's display source.
+    for record in stream.get("sourceRecords", []):
+        source = str(record.get("source") or "")
+        if not source:
+            continue
+        for field in ("providerRecordId", "providerStationUuid"):
+            value = record.get(field)
+            if value not in (None, ""):
+                values.setdefault(source, set()).add(str(value))
+
+    if not values:
+        # Backward compatibility for old, single-provider stream snapshots.
+        # A legacy flattened ID list on a multi-provider stream is ambiguous;
+        # do not attribute it to whichever provider happens to rank highest.
+        sources = set(stream.get("sources") or [stream.get("source")])
+        sources.discard(None)
+        if len(sources) <= 1:
+            source = str(stream.get("source") or next(iter(sources), ""))
+            raw_ids = stream.get("sourceStationIds") or (
+                [stream.get("sourceStationId")] if stream.get("sourceStationId") else []
+            )
+            for value in raw_ids:
+                if value not in (None, ""):
+                    values.setdefault(source, set()).add(str(value))
+    return {source: sorted(ids) for source, ids in sorted(values.items())}
+
+
+def _source_ids_for_station(station):
+    """Return every provider-qualified ID, accepting legacy scalar sourceIds values."""
+    values = {}
+    for source, raw_ids in (station.get("sourceIds") or {}).items():
+        ids = raw_ids if isinstance(raw_ids, (list, tuple, set)) else [raw_ids]
+        for value in ids:
+            if value not in (None, ""):
+                values.setdefault(str(source), set()).add(str(value))
+    for stream in station.get("streams", []):
+        for source, ids in _provider_ids_for_stream(stream).items():
+            values.setdefault(source, set()).update(ids)
+    return {source: sorted(ids) for source, ids in sorted(values.items())}
 
 
 def make_station(name, country="", country_code="", language="", tags=None, streams=None,
                  identity_evidence=None):
     streams = [stream for stream in (streams or []) if valid_stream_url(stream.get("url"))]
     streams.sort(key=stream_sort_key, reverse=True)
-    source_ids = {
-        stream["source"]: stream["sourceStationId"]
-        for stream in streams if stream.get("sourceStationId")
-    }
+    evidence = list(identity_evidence or [
+        make_identity_evidence(
+            stream.get("source"), provider_record_id=stream.get("sourceStationId"),
+            stream_url=stream.get("url"), codec=stream.get("codec"),
+            bitrate=stream.get("bitrate"),
+        )
+        for stream in streams
+    ])
+    for stream in streams:
+        safe_stream_url = make_identity_evidence(
+            stream.get("source"), stream_url=stream.get("url")
+        )["streamUrl"]
+        matching = [
+            item for item in evidence
+            if item.get("source") == stream.get("source")
+            and (not item.get("streamUrl") or item.get("streamUrl") == safe_stream_url)
+        ]
+        stream["sourceRecords"] = matching or stream.get("sourceRecords", [])
+        provider_ids = _provider_ids_for_stream(stream)
+        for item in stream["sourceRecords"]:
+            provider = str(item.get("source") or "")
+            if not provider:
+                continue
+            for field in ("providerRecordId", "providerStationUuid"):
+                value = item.get(field)
+                if value not in (None, ""):
+                    provider_ids.setdefault(provider, [])
+                    provider_ids[provider] = sorted(set(provider_ids[provider] + [str(value)]))
+        stream["providerSources"] = {
+            provider: sorted(set(ids)) for provider, ids in sorted(provider_ids.items())
+        }
+        # Legacy compatibility field: intentionally flattened, never used for
+        # identity matching when providerSources is available.
+        stream["sourceStationIds"] = sorted({
+            value for ids in stream["providerSources"].values() for value in ids
+        })
+    # Compute the station compatibility view after source-record evidence has
+    # enriched each stream's provider-attributed identity map.
+    source_ids = _source_ids_for_station({"streams": streams})
     station = {
         # Assigned after reconciliation, once canonical groups are known.
         "stationUuid": None,
@@ -181,14 +279,7 @@ def make_station(name, country="", country_code="", language="", tags=None, stre
         "status": "unknown",
         "lastCheckedAt": None,
         "failureCount": 0,
-        "_identityEvidence": list(identity_evidence or [
-            make_identity_evidence(
-                stream.get("source"), provider_record_id=stream.get("sourceStationId"),
-                stream_url=stream.get("url"), codec=stream.get("codec"),
-                bitrate=stream.get("bitrate"),
-            )
-            for stream in streams
-        ]),
+        "_identityEvidence": evidence,
     }
     refresh_station_sources(station)
     return station
@@ -213,12 +304,32 @@ def merge_station(target, incoming):
             existing_by_url[stream["url"]] = stream
         else:
             existing["sources"] = sorted(set(existing.get("sources", [existing["source"]]) + stream.get("sources", [stream["source"]])))
-            existing["sourceStationIds"] = sorted(set(existing.get("sourceStationIds", []) + stream.get("sourceStationIds", [])))
+            provider_ids = _provider_ids_for_stream(existing)
+            for provider, ids in _provider_ids_for_stream(stream).items():
+                provider_ids.setdefault(provider, [])
+                provider_ids[provider] = sorted(set(provider_ids[provider] + ids))
+            existing["providerSources"] = {
+                provider: sorted(ids) for provider, ids in sorted(provider_ids.items())
+            }
+            # Retain the historical flattened field only as a compatibility view.
+            existing["sourceStationIds"] = sorted({
+                value for ids in existing["providerSources"].values() for value in ids
+            })
+            known_records = {json.dumps(item, sort_keys=True, ensure_ascii=False) for item in existing.get("sourceRecords", [])}
+            for item in stream.get("sourceRecords", []):
+                marker = json.dumps(item, sort_keys=True, ensure_ascii=False)
+                if marker not in known_records:
+                    existing.setdefault("sourceRecords", []).append(item)
+                    known_records.add(marker)
             if stream_sort_key(stream) > stream_sort_key(existing):
-                for field in ("source", "priority", "qualityScore", "codec", "bitrate"):
+                for field in ("source", "sourceStationId", "priority", "qualityScore", "codec", "bitrate"):
                     existing[field] = stream.get(field)
 
-    target.setdefault("sourceIds", {}).update(incoming.get("sourceIds", {}))
+    merged_ids = _source_ids_for_station(target)
+    incoming_ids = _source_ids_for_station(incoming)
+    for source, ids in incoming_ids.items():
+        merged_ids[source] = sorted(set(merged_ids.get(source, []) + ids))
+    target["sourceIds"] = merged_ids
     target["country"] = target["country"] or incoming["country"]
     target["countryCode"] = target["countryCode"] or incoming["countryCode"]
     target["language"] = target["language"] or incoming["language"]
@@ -252,17 +363,17 @@ def find_station_match(candidates, incoming):
     # ambiguous prevents those variants from being reconciled. Do not use a
     # stream URL as identity: URLs are variants, not station identifiers.
     incoming_ids = {
-        (str(source), str(source_id))
-        for source, source_id in incoming.get("sourceIds", {}).items()
-        if source_id not in (None, "")
+        (source, source_id)
+        for source, ids in _source_ids_for_station(incoming).items()
+        for source_id in ids
     }
     if incoming_ids:
         exact_matches = [
             station for station in compatible
             if incoming_ids.intersection(
-                (str(source), str(source_id))
-                for source, source_id in station.get("sourceIds", {}).items()
-                if source_id not in (None, "")
+                (source, source_id)
+                for source, ids in _source_ids_for_station(station).items()
+                for source_id in ids
             )
         ]
         if len(exact_matches) == 1:
@@ -285,10 +396,9 @@ def _canonical_identity_base(station):
 
 def _canonical_identity_disambiguator(station):
     provider_ids = sorted(
-        f"{stream.get('source', '')}:{source_id}"
-        for stream in station.get("streams", [])
-        for source_id in stream.get("sourceStationIds", [])
-        if source_id
+        f"{source}:{source_id}"
+        for source, ids in _source_ids_for_station(station).items()
+        for source_id in ids
     )
     stream_provenance = sorted(
         f"{stream.get('source', '')}:{stream.get('url', '')}"
@@ -329,7 +439,9 @@ def _identity_diagnostic_record(station):
         "streams": [
             {
                 "source": stream.get("source", ""),
+                "sources": stream.get("sources", [stream.get("source", "")]),
                 "sourceStationIds": stream.get("sourceStationIds", []),
+                "providerSources": stream.get("providerSources", {}),
                 "codec": stream.get("codec", ""),
                 "bitrate": stream.get("bitrate", 0),
                 "streamUrl": make_identity_evidence(
@@ -416,25 +528,104 @@ async def load_source(session, source_id, config, loader, state_dir):
             "error": None,
         }
 
+    playlist_refresh = None
     try:
         stations = await loader(session, config, priority)
+        playlist_refresh = config.pop("_playlistRefresh", None)
         stations = [
             station for station in stations
             if station.get("name") and station.get("streams")
             and any(valid_stream_url(stream.get("url")) for stream in station.get("streams", []))
         ]
+        if playlist_refresh:
+            minimum_coverage = playlist_refresh.get("minimumCoverageRatio", 0.8)
+            if playlist_refresh.get("coverageRatio", 1.0) < minimum_coverage:
+                raise ValueError("Playlist retrieval coverage below the configured safe threshold")
+            minimum_parse_coverage = playlist_refresh.get("minimumParseCoverageRatio", minimum_coverage)
+            if playlist_refresh.get("parseCoverageRatio", 1.0) < minimum_parse_coverage:
+                raise ValueError("Playlist parse coverage below the configured safe threshold")
+
+            incomplete_paths = set()
+            for item in playlist_refresh.get("failedPlaylists", []):
+                path = item.get("path")
+                if not path:
+                    raise ValueError("A failed playlist has no path; cannot safely account for its prior records")
+                incomplete_paths.add(path)
+            for item in playlist_refresh.get("skippedPlaylists", []):
+                # Only a future source-specific, explicitly validated empty
+                # marker may exempt a playlist. The current M3U adapter emits no
+                # such classification; unknown/invalid skips retain old data.
+                if item.get("classification") == "valid-empty" or item.get("validEmpty") is True:
+                    continue
+                path = item.get("path")
+                if not path:
+                    raise ValueError("An unparseable skipped playlist has no path; cannot preserve its prior records")
+                incomplete_paths.add(path)
+
+            if incomplete_paths:
+                previous = load_snapshot(state_dir, source_id)
+                if not previous:
+                    raise ValueError(
+                        "Partial playlist refresh has no last-good snapshot to restore incomplete playlists"
+                    )
+
+                retained_by_key = {}
+                mapped_paths = set()
+                for station in previous["stations"]:
+                    evidence = list(station.get("_identityEvidence") or [])
+                    evidence.extend(
+                        item
+                        for stream in station.get("streams", [])
+                        for item in stream.get("sourceRecords", [])
+                    )
+                    station_paths = {
+                        item.get("playlistPath") for item in evidence
+                        if item.get("playlistPath") in incomplete_paths
+                    }
+                    if station_paths:
+                        mapped_paths.update(station_paths)
+                        key = station.get("stationUuid") or json.dumps(
+                            station, sort_keys=True, ensure_ascii=False
+                        )
+                        retained_by_key[key] = station
+
+                unmapped_paths = sorted(incomplete_paths - mapped_paths)
+                if unmapped_paths:
+                    raise ValueError(
+                        "cannot map failed files or unparseable playlists to last-good provenance; "
+                        f"retaining the full previous provider snapshot. Unmapped paths: {unmapped_paths}"
+                    )
+                if not retained_by_key:
+                    raise ValueError(
+                        "No previous records were retained for incomplete playlists; "
+                        "retaining the full previous provider snapshot"
+                    )
+
+                # Retain every previous station associated with each incomplete
+                # path. A single unmapped path aborts this partial refresh and the
+                # exception handler restores the entire last-good snapshot.
+                stations.extend(retained_by_key.values())
+
         if not stations:
             raise ValueError("Source returned no usable stations; protecting its last-good snapshot")
         save_snapshot(state_dir, source_id, stations)
         return stations, {
             "source": source_id,
             "enabled": True,
-            "status": "ok",
+            "status": "partial" if playlist_refresh and (
+                playlist_refresh.get("failed") or playlist_refresh.get("unparseable")
+                or playlist_refresh.get("skippedPlaylists")
+            ) else "ok",
             "stationCount": len(stations),
-            "snapshot": "refreshed",
+            "snapshot": "refreshed-with-last-good-playlists" if playlist_refresh and (
+                playlist_refresh.get("failed") or playlist_refresh.get("unparseable")
+                or playlist_refresh.get("skippedPlaylists")
+            ) else "refreshed",
+            "playlistRefresh": playlist_refresh,
             "error": None,
         }
     except Exception as error:
+        playlist_refresh = playlist_refresh or config.pop("_playlistRefresh", None)
         snapshot = load_snapshot(state_dir, source_id)
         if snapshot:
             restored_stations = snapshot["stations"]
@@ -454,6 +645,7 @@ async def load_source(session, source_id, config, loader, state_dir):
                 "stationCount": len(snapshot["stations"]),
                 "snapshot": "last-good",
                 "snapshotUpdatedAt": snapshot.get("updatedAt"),
+                "playlistRefresh": playlist_refresh,
                 "error": str(error),
             }
         return [], {
@@ -462,6 +654,7 @@ async def load_source(session, source_id, config, loader, state_dir):
             "status": "failed",
             "stationCount": 0,
             "snapshot": "unavailable",
+            "playlistRefresh": playlist_refresh,
             "error": str(error),
         }
 
@@ -575,29 +768,33 @@ async def main(state_dir=Path("state")):
         async with session.get(url, headers={"User-Agent": "Radsync/1.0"}) as response:
             response.raise_for_status()
             raw = parse_m3u(await response.text())
-        return [
-            make_station(
-                item["name"],
-                country=item.get("country", ""),
-                country_code=item.get("attributes", {}).get("tvg-country-code", ""),
+        result = []
+        for item in raw:
+            evidence_record = {
+                **item, "id": item.get("station_id"),
+                "original_title": item.get("name"),
+                "original_url": item.get("stream_url"),
+                "raw_metadata": item.get("attributes", {}),
+            }
+            evidence = make_identity_evidence(
+                source_id, evidence_record, item.get("station_id"), url,
+                playlist_path=url, entry_index=item.get("entry_index"),
+                raw_extinf=item.get("raw_extinf"), stream_url=item.get("stream_url"),
+                codec=item.get("attributes", {}).get("tvg-audio"),
+            )
+            result.append(make_station(
+                item["name"], country=item.get("country", ""),
+                country_code=item.get("attributes", {}).get("tvg-country-code", item.get("country_code", "")),
                 language=item.get("language", ""),
                 tags=item.get("genres") or [source_id],
                 streams=[make_stream(
                     source_id, item["stream_url"],
                     item.get("attributes", {}).get("tvg-audio", ""),
-                    priority=priority,
-                    source_station_id=item.get("station_id"),
+                    priority=priority, source_station_id=item.get("station_id"),
                 )],
-                identity_evidence=[make_identity_evidence(
-                    source_id, {"name": item.get("name"), "id": item.get("station_id"),
-                                "tags": item.get("genres"), "codec": item.get("attributes", {}).get("tvg-audio")},
-                    item.get("station_id"), url, playlist_path=url,
-                    entry_index=item.get("entry_index"), raw_extinf=item.get("raw_extinf"),
-                    stream_url=item.get("stream_url"), codec=item.get("attributes", {}).get("tvg-audio"),
-                )],
-            )
-            for item in raw
-        ]
+                identity_evidence=[evidence],
+            ))
+        return result
 
     async def load_iptv_streams(session, source_config, priority):
         raw = await fetch_streams(session, source_config["url"])
@@ -652,19 +849,39 @@ async def main(state_dir=Path("state")):
         return result
 
     async def load_repo_playlists(session, source_id, source_config, priority):
-        raw = await fetch_repository_playlists(
-            session,
-            source_config["repoApiUrl"],
-            source_config["rawBaseUrl"],
-        )
-        return [
-            make_station(
-                item["name"],
-                tags=[],
-                streams=[make_stream(source_id, item["stream_url"], priority=priority)],
+        playlist_refresh = {}
+        try:
+            raw = await fetch_repository_playlists(
+                session,
+                source_config["repoApiUrl"],
+                source_config["rawBaseUrl"],
+                report=playlist_refresh,
             )
-            for item in raw
-        ]
+        finally:
+            source_config["_playlistRefresh"] = playlist_refresh
+        result = []
+        for item in raw:
+            evidence_record = {
+                **item, "id": item.get("station_id"),
+                "original_title": item.get("name"),
+                "original_url": item.get("stream_url"),
+                "raw_metadata": item.get("attributes", {}),
+            }
+            evidence = make_identity_evidence(
+                source_id, evidence_record, item.get("station_id"),
+                item.get("playlist_url"), playlist_path=item.get("playlist_path"),
+                entry_index=item.get("entry_index"), raw_extinf=item.get("raw_extinf"),
+                stream_url=item.get("stream_url"),
+            )
+            result.append(make_station(
+                item["name"], country=item.get("country", ""),
+                country_code=item.get("country_code", ""),
+                language=item.get("language", ""), tags=item.get("genres") or [],
+                streams=[make_stream(source_id, item["stream_url"], priority=priority,
+                                     source_station_id=item.get("station_id"))],
+                identity_evidence=[evidence],
+            ))
+        return result
 
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120)) as session:
         results = await asyncio.gather(
