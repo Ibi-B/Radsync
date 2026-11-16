@@ -7,12 +7,40 @@ from sources.m3u import parse_m3u
 from sources.normalize import as_records
 
 
+MIN_PLAYLIST_COVERAGE = 0.80
+
+
 async def fetch_repository_playlists(
-    session: aiohttp.ClientSession, repo_api_url: str, raw_base_url: str,
+    session: aiohttp.ClientSession,
+    repo_api_url: str,
+    raw_base_url: str,
+    report=None,
 ):
-    async with session.get(repo_api_url, headers={"User-Agent": "Radsync/1.0", "Accept": "application/vnd.github+json"}) as response:
+    """Fetch every discovered playlist; tolerate isolated failures with explicit coverage."""
+    metrics = report if report is not None else {}
+    metrics.clear()
+    metrics.update({
+        "discovered": 0,
+        "processed": 0,
+        "retrieved": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "skipped": 0,
+        "failedPlaylists": [],
+        "skippedPlaylists": [],
+        "minimumCoverageRatio": MIN_PLAYLIST_COVERAGE,
+        "coverageRatio": 0.0,
+    })
+
+    # Failure to retrieve or decode the repository tree is systemic: never use
+    # an incomplete listing as the basis for replacing a provider snapshot.
+    async with session.get(
+        repo_api_url,
+        headers={"User-Agent": "Radsync/1.0", "Accept": "application/vnd.github+json"},
+    ) as response:
         response.raise_for_status()
         payload = await response.json(content_type=None)
+
     if isinstance(payload, dict) and payload.get("truncated") is True:
         raise ValueError("GitHub playlist tree is truncated; refusing incomplete provider snapshot")
 
@@ -24,14 +52,51 @@ async def fetch_repository_playlists(
         if path and kind in (None, "blob", "file") and str(path).lower().endswith((".m3u", ".m3u8")):
             playlist_paths.append(str(path))
 
+    playlist_paths = sorted(set(playlist_paths))
+    metrics["discovered"] = len(playlist_paths)
+    if not playlist_paths:
+        raise ValueError("GitHub repository tree contained no discoverable playlists")
+
     raw_parts = [part for part in urlsplit(raw_base_url).path.split("/") if part]
     repository_path = "/".join(raw_parts[:2])[:200]
     playlists = []
-    for path in sorted(set(playlist_paths)):
+
+    for path in playlist_paths:
+        metrics["processed"] += 1
         playlist_url = raw_base_url.rstrip("/") + "/" + path.lstrip("/")
-        async with session.get(playlist_url, headers={"User-Agent": "Radsync/1.0"}) as response:
-            response.raise_for_status()
-            records = parse_m3u(await response.text(), base_url=playlist_url)
+        try:
+            async with session.get(
+                playlist_url, headers={"User-Agent": "Radsync/1.0"}
+            ) as response:
+                response.raise_for_status()
+                text = await response.text()
+            records = parse_m3u(text, base_url=playlist_url)
+        except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError, ValueError) as error:
+            status = getattr(error, "status", None)
+            metrics["failed"] += 1
+            metrics["failedPlaylists"].append({
+                "path": path,
+                "error": str(error)[:500],
+                "status": status,
+            })
+            # Authentication, authorization and rate limiting are provider-wide
+            # conditions, not isolated missing playlist files.
+            if status in (401, 403, 429):
+                raise RuntimeError(
+                    f"Systemic GitHub playlist access failure ({status}) at {path}"
+                ) from error
+            continue
+
+        metrics["retrieved"] += 1
+        if not records:
+            metrics["skipped"] += 1
+            metrics["skippedPlaylists"].append({
+                "path": path,
+                "reason": "No parseable named stream entries",
+            })
+            continue
+
+        metrics["succeeded"] += 1
         for record in records:
             record["playlist_path"] = path
             record["playlist_url"] = playlist_url
@@ -41,4 +106,17 @@ async def fetch_repository_playlists(
             record["original_url"] = record.get("stream_url", "")
             record["raw_metadata"] = record.get("attributes", {})
         playlists.extend(records)
+
+    metrics["coverageRatio"] = round(
+        (metrics["discovered"] - metrics["failed"]) / metrics["discovered"], 4
+    )
+    if metrics["retrieved"] == 0:
+        raise ValueError("No GitHub playlists could be retrieved; protecting last-good snapshot")
+    if metrics["coverageRatio"] < MIN_PLAYLIST_COVERAGE:
+        raise ValueError(
+            "GitHub playlist coverage collapsed: "
+            f"{metrics['coverageRatio']:.1%} retrieved, "
+            f"{MIN_PLAYLIST_COVERAGE:.0%} required"
+        )
+
     return playlists
