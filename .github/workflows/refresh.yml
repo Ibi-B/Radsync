@@ -176,8 +176,10 @@ jobs:
           # small pointers in Git; the large report remains for artifact upload.
           git -C state config user.name "github-actions[bot]"
           git -C state config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C state rm --cached -f diagnostics/source-report.json >/dev/null 2>&1 || true
-          git -C state add --all -- . ':(exclude)diagnostics/source-report.json'
+          git -C state rm --cached -f diagnostics/source-report.json diagnostics/identity-ambiguity.json >/dev/null 2>&1 || true
+          git -C state add --all -- . \
+            ':(exclude)diagnostics/source-report.json' \
+            ':(exclude)diagnostics/identity-ambiguity.json'
           if git -C state diff --cached --quiet; then
             echo "No external manifest or diagnostic changes to persist."
           else
