@@ -14,6 +14,28 @@ from sources.state import save_snapshot
 
 
 class ProviderIdentityAttributionTests(unittest.TestCase):
+    def test_station_source_ids_include_provider_attributed_source_record_ids(self):
+        evidence = {
+            "source": "provider-a",
+            "providerRecordId": "record-100",
+            "providerStationUuid": "station-200",
+            "streamUrl": "https://evidence.example/live",
+        }
+        station = make_station(
+            "Evidence Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-a", "https://evidence.example/live")],
+            identity_evidence=[evidence],
+        )
+
+        self.assertEqual(
+            ["record-100", "station-200"],
+            station["sourceIds"]["provider-a"],
+        )
+        self.assertEqual(
+            {"provider-a": ["record-100", "station-200"]},
+            station["streams"][0]["providerSources"],
+        )
+
     def test_shared_endpoint_keeps_each_id_under_its_original_provider(self):
         shared_url = "https://shared.example/live"
         provider_a = make_station(

@@ -230,7 +230,6 @@ def make_station(name, country="", country_code="", language="", tags=None, stre
         )
         for stream in streams
     ])
-    source_ids = _source_ids_for_station({"streams": streams})
     for stream in streams:
         safe_stream_url = make_identity_evidence(
             stream.get("source"), stream_url=stream.get("url")
@@ -259,6 +258,9 @@ def make_station(name, country="", country_code="", language="", tags=None, stre
         stream["sourceStationIds"] = sorted({
             value for ids in stream["providerSources"].values() for value in ids
         })
+    # Compute the station compatibility view after source-record evidence has
+    # enriched each stream's provider-attributed identity map.
+    source_ids = _source_ids_for_station({"streams": streams})
     station = {
         # Assigned after reconciliation, once canonical groups are known.
         "stationUuid": None,
@@ -550,8 +552,9 @@ async def load_source(session, source_id, config, loader, state_dir):
                     raise ValueError("A failed playlist has no path; cannot safely account for its prior records")
                 incomplete_paths.add(path)
             for item in playlist_refresh.get("skippedPlaylists", []):
-                # Only an explicitly validated empty M3U is safe to treat as an
-                # intentional empty source. Unknown/invalid skips retain old data.
+                # Only a future source-specific, explicitly validated empty
+                # marker may exempt a playlist. The current M3U adapter emits no
+                # such classification; unknown/invalid skips retain old data.
                 if item.get("classification") == "valid-empty" or item.get("validEmpty") is True:
                     continue
                 path = item.get("path")
