@@ -74,5 +74,53 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 os.chdir(previous)
 
 
+    async def test_refresh_report_survives_canonical_identity_failure(self):
+        disabled_sources = {
+            "radio_browser": {"enabled": False},
+            "airwavedb": {"enabled": False},
+            "icecast": {"enabled": False},
+            "iptv_org_radio": {"enabled": False},
+            "iptv_org_streams": {"enabled": False},
+            "pulham_hq": {"enabled": False},
+            "iprd": {"enabled": False},
+            "alon_drilich": {"enabled": False},
+            "somafm": {"enabled": False},
+            "bbc_radio": {"enabled": False},
+        }
+
+        with tempfile.TemporaryDirectory() as temporary:
+            previous = os.getcwd()
+            try:
+                os.chdir(temporary)
+                Path("config").mkdir()
+                Path("config/sources.json").write_text(
+                    json.dumps(disabled_sources), encoding="utf-8"
+                )
+                with patch.object(
+                    build_radio_catalog,
+                    "assign_canonical_station_ids",
+                    side_effect=ValueError("identity collision fixture"),
+                ):
+                    with self.assertRaisesRegex(ValueError, "identity collision fixture"):
+                        await build_radio_catalog.main(state_dir=Path("state"))
+
+                report_path = Path("state/diagnostics/source-report.json")
+                self.assertTrue(report_path.exists())
+                self.assertFalse(report_path.with_name("source-report.json.tmp").exists())
+                report = json.loads(report_path.read_text(encoding="utf-8"))
+                self.assertEqual("failed", report["buildStatus"])
+                self.assertEqual("canonical-identity-assignment", report["failedStage"])
+                self.assertEqual("ValueError", report["error"]["type"])
+                self.assertEqual("identity collision fixture", report["error"]["message"])
+                self.assertEqual(10, len(report["sources"]))
+                self.assertTrue(all("ingestionStartedAt" in item for item in report["sources"]))
+                self.assertTrue(all("ingestionCompletedAt" in item for item in report["sources"]))
+                self.assertTrue(all("stationProvenance" in item for item in report["sources"]))
+                self.assertFalse(Path("output/current/master-index.json").exists())
+            finally:
+                os.chdir(previous)
+
+
+
 if __name__ == "__main__":
     unittest.main()
