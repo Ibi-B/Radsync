@@ -1,4 +1,5 @@
 """GitHub repository M3U discovery adapter for IPRD and radio-playlists."""
+import asyncio
 from urllib.parse import urlsplit
 
 import aiohttp
