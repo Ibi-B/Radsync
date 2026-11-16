@@ -1,5 +1,6 @@
-"""Command-line validation for the durable Radsync state branch."""
+"""Command-line validation and external migration for durable Radsync state."""
 import argparse
+import json
 import sys
 
 from sources.state import validate_state
@@ -7,15 +8,45 @@ from sources.state import validate_state
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("validate",))
+    parser.add_argument(
+        "command",
+        choices=("validate", "restore-external", "publish-external"),
+    )
     parser.add_argument("--state-dir", required=True)
+    parser.add_argument("--config", default="config/sources.json")
+    parser.add_argument("--report", default="state/diagnostics/source-report.json")
+    parser.add_argument("--run-id", default=None)
     args = parser.parse_args()
-    valid, issues = validate_state(args.state_dir)
-    for issue in issues:
-        print(issue)
-    if not valid:
+
+    if args.command == "validate":
+        valid, issues = validate_state(args.state_dir)
+        for issue in issues:
+            print(issue)
+        if not valid:
+            return 1
+        print("Provider snapshot state is valid.")
+        return 0
+
+    from sources.external_state import (
+        publish_external_snapshots,
+        restore_external_snapshots,
+    )
+
+    try:
+        if args.command == "restore-external":
+            result = restore_external_snapshots(args.state_dir, args.config)
+        else:
+            result = publish_external_snapshots(
+                args.state_dir,
+                args.config,
+                args.report,
+                args.run_id,
+            )
+    except Exception as error:
+        print(f"External provider state operation failed: {type(error).__name__}: {error}")
         return 1
-    print("Provider snapshot state is valid.")
+
+    print(json.dumps(result, sort_keys=True))
     return 0
 
 
