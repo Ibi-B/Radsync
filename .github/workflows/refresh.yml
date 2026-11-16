@@ -134,6 +134,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+      - name: Upload refresh report
+        if: ${{ always() && steps.state_checkout.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: refresh-report-${{ github.run_id }}
+          path: state/diagnostics/source-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Upload Pages artifact
         if: ${{ steps.build_catalogue.outcome == 'success' }}
         uses: actions/upload-pages-artifact@v3
