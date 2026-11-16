@@ -143,44 +143,7 @@ class PartialPlaylistPreservationTests(unittest.IsolatedAsyncioTestCase):
             station["name"] for station in stations
         })
 
-    async def test_explicit_valid_empty_path_is_not_treated_as_partial_failure(self):
-        old = {
-            "name": "Previously Listed Station",
-            "streams": [{
-                "source": "iprd", "url": "https://old.example/live",
-                "sourceRecords": [{"source": "iprd", "playlistPath": "intentionally-empty.m3u"}],
-            }],
-            "_identityEvidence": [{"source": "iprd", "playlistPath": "intentionally-empty.m3u"}],
-        }
-        async def loader(session, config, priority):
-            config["_playlistRefresh"] = {
-                "discovered": 5, "processed": 5, "retrieved": 5,
-                "succeeded": 4, "failed": 0, "skipped": 1, "validEmpty": 1,
-                "unparseable": 0, "coverageRatio": 1.0,
-                "parseCoverageRatio": 1.0, "recordProductionCoverageRatio": 0.8,
-                "minimumCoverageRatio": 0.8, "minimumParseCoverageRatio": 0.8,
-                "failedPlaylists": [], "skippedPlaylists": [],
-                "validEmptyPlaylists": [{
-                    "path": "intentionally-empty.m3u",
-                    "classification": "valid-empty",
-                }],
-            }
-            return [{
-                "name": "Fresh Station",
-                "streams": [{"source": "iprd", "url": "https://fresh.example/live"}],
-            }]
-
-        with tempfile.TemporaryDirectory() as directory:
-            save_snapshot(directory, "iprd", [old])
-            stations, report = await load_source(
-                None, "iprd", {"enabled": True, "priority": 80}, loader, directory,
-            )
-
-        self.assertEqual(["Fresh Station"], [station["name"] for station in stations])
-        self.assertEqual("ok", report["status"])
-        self.assertEqual(1, report["playlistRefresh"]["validEmpty"])
-
-    async def test_explicit_valid_empty_playlist_is_not_confused_with_unparseable(self):
+    async def test_header_only_m3u_is_not_proof_of_intentional_empty(self):
         tree = {"tree": [{"path": "empty.m3u", "type": "blob"}]}
 
         class FakeResponse:
@@ -205,20 +168,20 @@ class PartialPlaylistPreservationTests(unittest.IsolatedAsyncioTestCase):
                 return FakeResponse(body="#EXTM3U\n")
 
         report = {}
-        records = await fetch_repository_playlists(
-            FakeSession(), "https://api.github.example/tree",
-            "https://raw.example/org/repo/main", report=report,
-        )
+        with self.assertRaisesRegex(ValueError, "parse coverage collapsed"):
+            await fetch_repository_playlists(
+                FakeSession(), "https://api.github.example/tree",
+                "https://raw.example/org/repo/main", report=report,
+            )
 
-        self.assertEqual([], records)
         self.assertEqual(1, report["retrieved"])
-        self.assertEqual(1, report["parsedSuccessfully"])
-        self.assertEqual(1, report["validEmpty"])
-        self.assertEqual(0, report["unparseable"])
+        self.assertEqual(0, report["parsedSuccessfully"])
+        self.assertEqual(0, report["validEmpty"])
+        self.assertEqual(1, report["unparseable"])
         self.assertEqual(1.0, report["coverageRatio"])
-        self.assertEqual(1.0, report["parseCoverageRatio"])
+        self.assertEqual(0.0, report["parseCoverageRatio"])
         self.assertEqual(0.0, report["recordProductionCoverageRatio"])
-        self.assertEqual("valid-empty", report["validEmptyPlaylists"][0]["classification"])
+        self.assertEqual("unparseable", report["skippedPlaylists"][0]["classification"])
 
     async def test_playlist_with_malformed_entry_is_not_classified_valid_empty(self):
         tree = {"tree": [{"path": "bad.m3u", "type": "blob"}]}

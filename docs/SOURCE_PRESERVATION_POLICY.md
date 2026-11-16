@@ -61,6 +61,6 @@ These are separate concepts. One station can have multiple provider IDs and many
 
 - Provider IDs remain qualified by their original provider at stream level under `providerSources`. The legacy flattened `sourceStationIds` field is compatibility-only and must never drive identity matching when a provider map is available.
 - Retrieval coverage and parse coverage are reported separately. Record-production coverage is also reported, because a retrieved playlist that emits no records is not equivalent to one that successfully contributed stations.
-- A header-only/comment-only `#EXTM3U` file with no entries or payload is explicitly classified as valid-empty. A playlist that contains an EXTINF entry, URL, or other payload but produces no named station records is unparseable, not empty.
+- The current M3U inputs have no reliable, format-defined marker for intentional emptiness. Header-only or comment-only files are therefore unparseable until an upstream-specific empty marker is documented; they must not authorize deletion of prior station records.
 - Every failed or unparseable playlist path must be mapped to prior source provenance before a partial snapshot can be saved. If even one path cannot be mapped, restore the entire last-good provider snapshot.
-- Explicit valid-empty playlists may contribute no new records; all ambiguous empty parses preserve their prior records or force full last-good restoration.
+- A future valid-empty exemption requires a documented upstream marker that unambiguously distinguishes an intentionally empty playlist from truncation or malformed input. No such exemption is enabled for the current M3U sources.

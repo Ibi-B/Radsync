@@ -11,23 +11,6 @@ from sources.normalize import as_records
 MIN_PLAYLIST_COVERAGE = 0.80
 
 
-def _is_explicit_valid_empty_m3u(text):
-    """Recognize only a header-only/comment-only M3U as an intentional empty playlist."""
-    lines = [line.strip() for line in (text or "").lstrip("\ufeff").splitlines() if line.strip()]
-    if not lines or lines[0].upper() != "#EXTM3U":
-        return False
-    for line in lines[1:]:
-        if line.startswith("#"):
-            # An EXTINF declaration means the playlist intended to provide an
-            # entry, even if it is malformed or its stream URL is missing.
-            if line.upper().startswith("#EXTINF:"):
-                return False
-            continue
-        # Bare URLs or other payload lines are not an explicit empty playlist.
-        return False
-    return True
-
-
 async def fetch_repository_playlists(
     session: aiohttp.ClientSession,
     repo_api_url: str,
@@ -115,22 +98,16 @@ async def fetch_repository_playlists(
 
         metrics["retrieved"] += 1
         if not records:
+            # M3U has no universal marker that distinguishes an intentional
+            # empty playlist from truncation or a parser regression. Preserve
+            # last-good records until an upstream-specific marker is defined.
             metrics["skipped"] += 1
-            if _is_explicit_valid_empty_m3u(text):
-                metrics["validEmpty"] += 1
-                metrics["parsedSuccessfully"] += 1
-                metrics["validEmptyPlaylists"].append({
-                    "path": path,
-                    "classification": "valid-empty",
-                    "reason": "Explicit #EXTM3U header with no entries or payload",
-                })
-            else:
-                metrics["unparseable"] += 1
-                metrics["skippedPlaylists"].append({
-                    "path": path,
-                    "classification": "unparseable",
-                    "reason": "Retrieved playlist did not produce named stream records and was not explicitly empty",
-                })
+            metrics["unparseable"] += 1
+            metrics["skippedPlaylists"].append({
+                "path": path,
+                "classification": "unparseable",
+                "reason": "No named stream records; the current M3U format provides no explicit valid-empty marker",
+            })
             continue
 
         metrics["succeeded"] += 1
@@ -166,7 +143,7 @@ async def fetch_repository_playlists(
     if metrics["parseCoverageRatio"] < MIN_PLAYLIST_COVERAGE:
         raise ValueError(
             "GitHub playlist parse coverage collapsed: "
-            f"{metrics['parseCoverageRatio']:.1%} parsed or explicitly empty, "
+            f"{metrics['parseCoverageRatio']:.1%} produced named records, "
             f"{MIN_PLAYLIST_COVERAGE:.0%} required"
         )
 
