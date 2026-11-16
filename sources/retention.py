@@ -593,11 +593,18 @@ def finalize_external_rotation(state_dir):
             raise base.ExternalStateError(f"{source}: unknown rotation cleanup role")
 
         # Confirm the replacement still exists with the expected SHA before
-        # deleting the superseded object. For active pointers, require its digest.
+        # deleting the superseded object. HEAD metadata is only a quick check:
+        # re-download and hash the actual bytes so stale metadata cannot mask
+        # object corruption between promotion and finalization.
         replacement_response = client.head_object(Bucket=bucket, Key=replacement_key)
         replacement_metadata = replacement_response.get("Metadata") or {}
         if digest and replacement_metadata.get("sha256") != digest:
             raise base.ExternalStateError(f"{source}: replacement checksum metadata mismatch")
+        with tempfile.TemporaryDirectory(prefix="radsync-finalize-") as temporary:
+            verification_file = Path(temporary) / "replacement.jsonl.zst"
+            base._download_verified(
+                client, bucket, replacement_key, verification_file, digest
+            )
         try:
             client.delete_object(Bucket=bucket, Key=delete_key)
         except Exception as error:
