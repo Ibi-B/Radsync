@@ -26,8 +26,12 @@ async def fetch_repository_playlists(
         "retrieved": 0,
         "succeeded": 0,
         "failed": 0,
+        "retrievalFailed": 0,
         "skipped": 0,
         "parsedSuccessfully": 0,
+        "parseFailed": 0,
+        "parsedWithoutUsableRecords": 0,
+        "recordProducingPlaylists": 0,
         "validEmpty": 0,
         "unparseable": 0,
         "recordsProduced": 0,
@@ -73,16 +77,19 @@ async def fetch_repository_playlists(
     for path in playlist_paths:
         metrics["processed"] += 1
         playlist_url = raw_base_url.rstrip("/") + "/" + path.lstrip("/")
+
+        # Retrieval and parsing are measured independently: a downloaded file
+        # remains a retrieval success even when its contents cannot be parsed.
         try:
             async with session.get(
                 playlist_url, headers={"User-Agent": "Radsync/1.0"}
             ) as response:
                 response.raise_for_status()
                 text = await response.text()
-            records = parse_m3u(text, base_url=playlist_url)
-        except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError, ValueError) as error:
+        except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError) as error:
             status = getattr(error, "status", None)
             metrics["failed"] += 1
+            metrics["retrievalFailed"] += 1
             metrics["failedPlaylists"].append({
                 "path": path,
                 "error": str(error)[:500],
@@ -97,21 +104,46 @@ async def fetch_repository_playlists(
             continue
 
         metrics["retrieved"] += 1
-        if not records:
-            # M3U has no universal marker that distinguishes an intentional
-            # empty playlist from truncation or a parser regression. Preserve
-            # last-good records until an upstream-specific marker is defined.
-            metrics["skipped"] += 1
+        try:
+            parsed_records = parse_m3u(text, base_url=playlist_url)
+        except (UnicodeError, ValueError, TypeError) as error:
+            metrics["parseFailed"] += 1
             metrics["unparseable"] += 1
+            metrics["skipped"] += 1
             metrics["skippedPlaylists"].append({
                 "path": path,
-                "classification": "unparseable",
-                "reason": "No named stream records; the current M3U format provides no explicit valid-empty marker",
+                "classification": "parse-failed",
+                "reason": str(error)[:500],
+            })
+            continue
+
+        metrics["parsedSuccessfully"] += 1
+        records = []
+        for record in parsed_records:
+            if not isinstance(record, dict) or not str(record.get("name") or "").strip():
+                continue
+            try:
+                stream = urlsplit(str(record.get("stream_url") or "").strip())
+            except ValueError:
+                continue
+            if stream.scheme in ("http", "https") and stream.netloc:
+                records.append(record)
+
+        if not records:
+            # A syntactically processed file with no usable named stream records
+            # is a parse success, but not proof of an intentional empty playlist.
+            # Keep last-good records until an upstream-specific empty marker exists.
+            metrics["skipped"] += 1
+            metrics["parsedWithoutUsableRecords"] += 1
+            metrics["skippedPlaylists"].append({
+                "path": path,
+                "classification": "no-usable-records",
+                "reason": "Parsing completed but produced no usable named HTTP(S) stream records",
             })
             continue
 
         metrics["succeeded"] += 1
-        metrics["parsedSuccessfully"] += 1
+        metrics["recordProducingPlaylists"] += 1
         metrics["recordsProduced"] += len(records)
         for record in records:
             record["playlist_path"] = path
@@ -124,26 +156,26 @@ async def fetch_repository_playlists(
         playlists.extend(records)
 
     metrics["coverageRatio"] = round(
-        (metrics["discovered"] - metrics["failed"]) / metrics["discovered"], 4
+        metrics["retrieved"] / metrics["discovered"], 4
     )
     metrics["parseCoverageRatio"] = round(
-        metrics["parsedSuccessfully"] / metrics["discovered"], 4
-    )
+        metrics["parsedSuccessfully"] / metrics["retrieved"], 4
+    ) if metrics["retrieved"] else 0.0
     metrics["recordProductionCoverageRatio"] = round(
-        metrics["succeeded"] / metrics["discovered"], 4
-    )
+        metrics["recordProducingPlaylists"] / metrics["retrieved"], 4
+    ) if metrics["retrieved"] else 0.0
     if metrics["retrieved"] == 0:
         raise ValueError("No GitHub playlists could be retrieved; protecting last-good snapshot")
     if metrics["coverageRatio"] < MIN_PLAYLIST_COVERAGE:
         raise ValueError(
             "GitHub playlist retrieval coverage collapsed: "
-            f"{metrics['coverageRatio']:.1%} retrieved, "
+            f"{metrics['coverageRatio']:.1%} retrieved of discovered playlists, "
             f"{MIN_PLAYLIST_COVERAGE:.0%} required"
         )
     if metrics["parseCoverageRatio"] < MIN_PLAYLIST_COVERAGE:
         raise ValueError(
             "GitHub playlist parse coverage collapsed: "
-            f"{metrics['parseCoverageRatio']:.1%} produced named records, "
+            f"{metrics['parseCoverageRatio']:.1%} parsed of retrieved playlists, "
             f"{MIN_PLAYLIST_COVERAGE:.0%} required"
         )
 
