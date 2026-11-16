@@ -17,6 +17,8 @@ def parse_m3u(text: str, base_url: str = ""):
             continue
         upper = line.upper()
         if upper.startswith("#EXTINF:"):
+            if current is not None:
+                raise ValueError("M3U EXTINF entry is missing its stream URL")
             metadata = line.split(",", 1)[1].strip() if "," in line else ""
             attributes = {key.lower(): value for key, value in ATTRIBUTE_RE.findall(line)}
             duration = line.split(":", 1)[1].split(",", 1)[0].strip()
@@ -41,4 +43,8 @@ def parse_m3u(text: str, base_url: str = ""):
             current = None
         elif line.startswith(("http://", "https://")):
             stations.append({"name": "", "stream_url": line, "attributes": {}})
+
+    if current is not None:
+        raise ValueError("M3U EXTINF entry is missing its stream URL")
+
     return [station for station in stations if station.get("name") and station.get("stream_url")]
