@@ -395,11 +395,31 @@ def _upload_immutable(client, bucket, key, file_path, digest):
     size = file_path.stat().st_size
     if _object_exists(client, bucket, key, digest, size):
         return size
-    with file_path.open("rb") as body:
-        client.put_object(
-            Bucket=bucket, Key=key, Body=body, ContentLength=size,
-            Metadata={"sha256": digest},
-        )
+    try:
+        with file_path.open("rb") as body:
+            client.put_object(
+                Bucket=bucket,
+                Key=key,
+                Body=body,
+                ContentLength=size,
+                Metadata={"sha256": digest},
+                IfNoneMatch="*",
+            )
+    except ClientError as error:
+        code = str(error.response.get("Error", {}).get("Code", ""))
+        status = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        # A concurrent writer or an R2 bucket-lock rule may win after the
+        # initial HEAD. Accept only if the now-existing object is the exact
+        # expected immutable object; otherwise fail closed.
+        if status not in {409, 412} and code not in {
+            "PreconditionFailed", "ObjectLockedByBucketPolicy"
+        }:
+            raise
+        if not _object_exists(client, bucket, key, digest, size):
+            raise ExternalStateError(
+                f"Immutable object create was rejected and no matching object exists: {key}"
+            ) from error
+        return size
     if not _object_exists(client, bucket, key, digest, size):
         raise ExternalStateError(f"Uploaded object could not be verified: {key}")
     return size
