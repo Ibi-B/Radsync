@@ -44,7 +44,7 @@ The manifest at \`manifests/providers/<provider>.json\` stores the current descr
 - If current is missing or corrupt but previous verifies, restore previous as the local last-good snapshot. A later successful publish keeps that verified previous version as the new previous until a valid current can be rotated.
 - If neither current nor previous verifies, restore fails closed and does not promote any local provider file.
 
-The archive copy is verified before the previous pointer can advance. Finalization checks that the replacement object exists with the expected SHA-256 metadata and that the replacement is still referenced by the committed manifest before deleting the superseded object. An interrupted finalization is retried on the next refresh.
+The archive copy is verified before the previous pointer can advance. Finalization requires the CLI's explicit `--manifest-pushed` confirmation, then checks both the replacement's stored SHA-256 metadata and a fresh downloaded-byte SHA-256 before deleting the superseded object. The replacement must still be referenced by the committed manifest. An interrupted finalization is retried on the next refresh.
 
 ## Retention policy
 
