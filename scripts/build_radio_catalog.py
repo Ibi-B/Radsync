@@ -25,12 +25,9 @@ from sources.somafm import fetch_channels
 from sources.github_playlists import fetch_repository_playlists
 from sources.m3u import parse_m3u
 from sources.normalize import as_records, get_value, as_text, as_tags, normalize_record
-from sources.state import (
-    load_snapshot,
-    save_snapshot,
-    snapshot_counts,
-    validate_provider_anomaly_bounds,
-)
+from sources.state import validate_provider_anomaly_bounds
+from sources.snapshot_store import LocalFileSnapshotStore
+
 
 OUTPUT = Path("output")
 RADSYNC_NAMESPACE = uuid.UUID("5d0f2f8e-3c52-5c7f-9b4f-6fbb3c7c1a42")
@@ -715,6 +712,7 @@ async def load_source(session, source_id, config, loader, state_dir):
         }
 
     playlist_refresh = None
+    snapshot_store = LocalFileSnapshotStore(state_dir)
     try:
         stations = await loader(session, config, priority)
         playlist_refresh = config.pop("_playlistRefresh", None)
@@ -726,7 +724,8 @@ async def load_source(session, source_id, config, loader, state_dir):
         for station in stations:
             _set_station_provenance_status(station, source_id, "fresh")
 
-        previous_counts = snapshot_counts(state_dir, source_id)
+        previous_snapshot = snapshot_store.verify_snapshot(source_id)
+        previous_counts = previous_snapshot
         validate_provider_anomaly_bounds(
             source_id,
             stations,
@@ -758,7 +757,7 @@ async def load_source(session, source_id, config, loader, state_dir):
                 incomplete_paths.add(path)
 
             if incomplete_paths:
-                previous = load_snapshot(state_dir, source_id)
+                previous = snapshot_store.load_snapshot(source_id)
                 if not previous:
                     raise ValueError(
                         "Partial playlist refresh has no last-good snapshot to restore incomplete playlists"
@@ -804,7 +803,7 @@ async def load_source(session, source_id, config, loader, state_dir):
 
         if not stations:
             raise ValueError("Source returned no usable stations; protecting its last-good snapshot")
-        save_snapshot(state_dir, source_id, stations)
+        snapshot_store.save_snapshot(source_id, stations)
         completed_at = datetime.now(timezone.utc).isoformat()
         partial = bool(playlist_refresh and (
             playlist_refresh.get("failed") or playlist_refresh.get("unparseable")
@@ -824,7 +823,7 @@ async def load_source(session, source_id, config, loader, state_dir):
         }
     except Exception as error:
         playlist_refresh = playlist_refresh or config.pop("_playlistRefresh", None)
-        snapshot = load_snapshot(state_dir, source_id)
+        snapshot = snapshot_store.load_snapshot(source_id)
         if snapshot:
             restored_stations = snapshot["stations"]
             for station in restored_stations:
