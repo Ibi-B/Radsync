@@ -9,7 +9,7 @@ from sources.normalize import as_records, get_value, normalize_record, as_tags
 from sources.state import load_snapshot, save_snapshot, validate_state
 from sources.m3u import parse_m3u
 from sources.github_playlists import fetch_repository_playlists
-from scripts.build_radio_catalog import load_source
+from scripts.build_radio_catalog import _enrich_source_report, load_source
 from sources.icecast import parse_directory
 
 
@@ -285,6 +285,112 @@ class SourceFallbackTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(["Saved Station"], [station["name"] for station in stations])
         self.assertEqual("stale", report["status"])
         self.assertEqual(0.4, report["playlistRefresh"]["coverageRatio"])
+
+
+    async def test_fresh_station_is_marked_and_report_keeps_ingestion_timestamp(self):
+        timestamp = "2026-11-16T10:00:00+00:00"
+        station = {
+            "name": "Fresh Station",
+            "streams": [{
+                "source": "fixture",
+                "url": "https://fresh.example/live",
+            }],
+            "_identityEvidence": [{
+                "source": "fixture",
+                "streamUrl": "https://fresh.example/live",
+                "originalUrl": "https://fresh.example/live",
+                "ingestedAt": timestamp,
+            }],
+        }
+
+        with tempfile.TemporaryDirectory() as temporary:
+            stations, report = await load_source(
+                None, "fixture", {"enabled": True, "priority": 50},
+                AsyncMock(return_value=[station]), temporary,
+            )
+
+        self.assertEqual("fresh", stations[0]["_provenanceStatus"])
+        self.assertEqual({"fixture": "fresh"}, stations[0]["_provenanceStatusBySource"])
+        _enrich_source_report(report, stations)
+        self.assertEqual(1, report["freshStationCount"])
+        self.assertEqual(
+            [timestamp],
+            report["stationProvenance"][0]["ingestionTimestamps"],
+        )
+        self.assertEqual(timestamp, report["stationProvenance"][0]["sourceRecords"][0]["ingestedAt"])
+
+    async def test_complete_iprd_snapshot_is_marked_restored_last_good(self):
+        timestamp = "2026-11-15T08:30:00+00:00"
+        evidence = {
+            "source": "iprd",
+            "sourceUrl": "https://raw.githubusercontent.com/iprd-org/IPRD/main/stations/a.m3u",
+            "playlistRepository": "iprd-org/IPRD",
+            "playlistPath": "stations/a.m3u",
+            "entryIndex": 0,
+            "rawExtinf": '#EXTINF:-1 tvg-id="example",Example Radio',
+            "originalTitle": "Example Radio",
+            "originalUrl": "https://radio.example/live",
+            "streamUrl": "https://radio.example/live",
+            "ingestedAt": timestamp,
+        }
+        old = {
+            "name": "Example Radio",
+            "streams": [{
+                "source": "iprd",
+                "url": "https://radio.example/live",
+                "sourceRecords": [evidence],
+            }],
+            "_identityEvidence": [evidence],
+        }
+
+        with tempfile.TemporaryDirectory() as temporary:
+            save_snapshot(temporary, "iprd", [old])
+            stations, report = await load_source(
+                None, "iprd", {"enabled": True, "priority": 80},
+                AsyncMock(side_effect=RuntimeError("upstream unavailable")), temporary,
+            )
+
+        self.assertEqual("stale", report["status"])
+        self.assertEqual("restored-last-good", stations[0]["_provenanceStatus"])
+        self.assertEqual(
+            {"iprd": "restored-last-good"},
+            stations[0]["_provenanceStatusBySource"],
+        )
+
+    async def test_legacy_iprd_snapshot_is_marked_incomplete_without_fabricating_fields(self):
+        legacy_evidence = {
+            "source": "iprd",
+            "providerRecordId": "",
+            "providerStationUuid": "",
+            "streamUrl": "https://legacy.example/live",
+            "originalUrl": "https://legacy.example/live",
+        }
+        old = {
+            "name": "Legacy IPRD Station",
+            "streams": [{
+                "source": "iprd",
+                "url": "https://legacy.example/live",
+                "sourceRecords": [legacy_evidence],
+            }],
+            "_identityEvidence": [legacy_evidence],
+        }
+
+        with tempfile.TemporaryDirectory() as temporary:
+            save_snapshot(temporary, "iprd", [old])
+            stations, report = await load_source(
+                None, "iprd", {"enabled": True, "priority": 80},
+                AsyncMock(side_effect=RuntimeError("upstream unavailable")), temporary,
+            )
+
+        self.assertEqual("stale", report["status"])
+        self.assertEqual(
+            "legacy-incomplete-provenance",
+            stations[0]["_provenanceStatus"],
+        )
+        self.assertNotIn("playlistPath", stations[0]["_identityEvidence"][0])
+        self.assertNotIn("entryIndex", stations[0]["_identityEvidence"][0])
+        self.assertNotIn("rawExtinf", stations[0]["_identityEvidence"][0])
+
 
 
 if __name__ == "__main__":
