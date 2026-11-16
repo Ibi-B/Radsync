@@ -335,7 +335,8 @@ def _s3_context():
         aws_secret_access_key=secret_key,
         config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
     )
-    prefix = os.environ.get("RADSYNC_S3_PREFIX", "radsync/state").strip("/ ")
+    configured_prefix = os.environ.get("RADSYNC_S3_PREFIX", "").strip("/ ")
+    prefix = configured_prefix or "radsync/state"
     return client, bucket, prefix
 
 
