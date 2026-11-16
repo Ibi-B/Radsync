@@ -127,7 +127,7 @@ class RetentionLayoutTests(unittest.TestCase):
         second_previous = second["previous"]["objectKey"]
         self.assertTrue(second_current.startswith("radsync/state/current/fixture/"))
         self.assertTrue(second_previous.startswith("radsync/state/previous/fixture/"))
-        self.assertEqual(first_current.rsplit("/", 1)[0].split("/")[-2], first_current.rsplit("/", 1)[0].split("/")[-2])
+        self.assertIn(first_current, self.client.objects)
         self.assertIn(first_current, self.client.objects)
         self.assertIn(second_previous, self.client.objects)
         self.assertIn(first_current, [item["deleteKey"] for item in second["rotationCleanup"]])
@@ -286,7 +286,9 @@ class RetentionLayoutTests(unittest.TestCase):
         self.assertEqual(json.loads(report.read_text(encoding="utf-8")), json.loads(output.read_text(encoding="utf-8")))
 
     def test_diagnostics_and_state_prefixes_must_not_overlap(self):
-        with patch.dict("os.environ", {"RADSYNC_DIAGNOSTICS_PREFIX": "radsync/state/diagnostics"}):
+        with patch("sources.retention.base._s3_context", return_value=(
+            self.client, "fixture-bucket", "radsync/state"
+        )), patch.dict("os.environ", {"RADSYNC_DIAGNOSTICS_PREFIX": "radsync/state/diagnostics"}):
             with self.assertRaisesRegex(retention.base.ExternalStateError, "must be separate"):
                 retention._s3_context()
 
