@@ -589,7 +589,7 @@ async def load_source(session, source_id, config, loader, state_dir):
                 unmapped_paths = sorted(incomplete_paths - mapped_paths)
                 if unmapped_paths:
                     raise ValueError(
-                        "Cannot map every failed/unparseable playlist to last-good provenance; "
+                        "cannot map failed files or unparseable playlists to last-good provenance; "
                         f"retaining the full previous provider snapshot. Unmapped paths: {unmapped_paths}"
                     )
                 if not retained_by_key:

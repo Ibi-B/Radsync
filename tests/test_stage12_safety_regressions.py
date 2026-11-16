@@ -208,12 +208,12 @@ class PartialPlaylistPreservationTests(unittest.IsolatedAsyncioTestCase):
                 return FakeResponse(body='#EXTM3U\n#EXTINF:-1 tvg-id="one",Station\n')
 
         report = {}
-        records = await fetch_repository_playlists(
-            FakeSession(), "https://api.github.example/tree",
-            "https://raw.example/org/repo/main", report=report,
-        )
+        with self.assertRaisesRegex(ValueError, "parse coverage collapsed"):
+            await fetch_repository_playlists(
+                FakeSession(), "https://api.github.example/tree",
+                "https://raw.example/org/repo/main", report=report,
+            )
 
-        self.assertEqual([], records)
         self.assertEqual(1, report["unparseable"])
         self.assertEqual(0, report["validEmpty"])
         self.assertEqual("unparseable", report["skippedPlaylists"][0]["classification"])
