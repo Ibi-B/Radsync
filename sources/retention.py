@@ -26,7 +26,10 @@ LAYOUT_VERSION = 2
 def _s3_context():
     client, bucket, prefix = base._s3_context()
     diagnostics = os.environ.get("RADSYNC_DIAGNOSTICS_PREFIX", "").strip("/ ")
-    return client, bucket, prefix, diagnostics or "radsync/diagnostics"
+    diagnostics_prefix = diagnostics or "radsync/diagnostics"
+    if diagnostics_prefix.startswith(prefix + "/") or prefix.startswith(diagnostics_prefix + "/"):
+        raise base.ExternalStateError("State and diagnostics prefixes must be separate")
+    return client, bucket, prefix, diagnostics_prefix
 
 
 def _descriptor(manifest, previous=False):
@@ -215,6 +218,7 @@ def publish_external_snapshots(state_dir, config_path="config/sources.json",
                 candidate_archive = Path(temporary) / f"{source}-candidate.jsonl.zst"
                 candidate_counts = base._create_archive(snapshot_file, candidate_archive, source, bounds)
                 candidate_digest = base._sha256_file(candidate_archive)
+                current_key = _current_key(prefix, source, candidate_digest)
                 candidate_db = Path(temporary) / f"{source}-candidate.sqlite3"
                 candidate_verified = base._stage_archive(
                     candidate_archive, candidate_db, source,
@@ -286,7 +290,6 @@ def publish_external_snapshots(state_dir, config_path="config/sources.json",
                         "archive", archived_previous_key, temporary, created_objects,
                     )
 
-                current_key = _current_key(prefix, source, candidate_digest)
                 current_size, current_metadata = _upload_verified_archive(
                     client, bucket, current_key, candidate_archive, candidate_digest,
                     source, candidate_counts["stationCount"], candidate_counts["streamCount"],
@@ -306,12 +309,12 @@ def publish_external_snapshots(state_dir, config_path="config/sources.json",
                 cleanup_items = []
                 if old_current:
                     replacement = new_previous.get("objectKey") if new_previous else current_key
-                    if old_current.get("objectKey") != replacement:
+                    if old_current.get("objectKey") not in {replacement, current_key}:
                         cleanup_items.append({
                             "deleteKey": old_current["objectKey"],
                             "replacementKey": replacement,
                             "replacementRole": "previous" if new_previous else "current",
-                            "sha256": old_current.get("sha256"),
+                            "sha256": (new_previous or {}).get("sha256") if new_previous else candidate_digest,
                         })
                 if old_previous and old_previous.get("objectKey") != (new_previous or {}).get("objectKey"):
                     replacement = archived_previous_key or (new_previous or {}).get("objectKey")
@@ -320,27 +323,23 @@ def publish_external_snapshots(state_dir, config_path="config/sources.json",
                             "deleteKey": old_previous["objectKey"],
                             "replacementKey": replacement,
                             "replacementRole": "archive" if archived_previous_key else "previous",
-                            "sha256": old_previous.get("sha256"),
+                            "sha256": (new_previous or {}).get("sha256") if not archived_previous_key else old_previous.get("sha256"),
                         })
                 # Keep any unfinalized cleanup from earlier successful runs.
+                combined = []
                 seen_cleanup = set()
                 for item in pending_cleanup + cleanup_items:
                     identity = (item.get("deleteKey"), item.get("replacementKey"))
                     if identity not in seen_cleanup:
-                        pending_cleanup.append(item) if item in cleanup_items else None
-                        seen_cleanup.add(identity)
-                # Deduplicate without losing previously pending entries.
-                combined = []
-                for item in pending_cleanup + cleanup_items:
-                    identity = (item.get("deleteKey"), item.get("replacementKey"))
-                    if identity not in {(x.get("deleteKey"), x.get("replacementKey")) for x in combined}:
                         combined.append(item)
+                        seen_cleanup.add(identity)
                 if combined:
                     manifest["rotationCleanup"] = combined
                 new_manifests.append(manifest)
 
             # Diagnostics live outside state/, with their own lifecycle prefix.
             if report_path and Path(report_path).is_file():
+                _verify_json(report_path)
                 base._compress_report(report_path, Path(temporary) / "refresh-report.json.zst")
                 compressed = Path(temporary) / "refresh-report.json.zst"
                 digest = base._sha256_file(compressed)
@@ -413,14 +412,16 @@ def _upload_verified_diagnostic(client, bucket, key, compressed, digest, temp_di
         created_objects.append(key)
     verified = Path(temp_dir) / f"diagnostic-{hashlib.sha256(key.encode()).hexdigest()[:12]}.zst"
     base._download_verified(client, bucket, key, verified, digest)
-    # A full Zstandard read catches truncated frames before the pointer is stored.
-    with verified.open("rb") as source:
+    # A full Zstandard read and JSON parse catch truncated or malformed
+    # diagnostics before the manifest pointer is stored.
+    expanded = Path(temp_dir) / f"diagnostic-{hashlib.sha256(key.encode()).hexdigest()[:12]}.json"
+    with verified.open("rb") as source, expanded.open("wb") as target:
         reader = base.zstandard.ZstdDecompressor().stream_reader(source)
         try:
-            while reader.read(1024 * 1024):
-                pass
+            shutil.copyfileobj(reader, target, length=1024 * 1024)
         finally:
             reader.close()
+    _verify_json(expanded)
     return size, verified
 
 
