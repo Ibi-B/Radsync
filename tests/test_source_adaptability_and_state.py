@@ -1,4 +1,5 @@
 import json
+import aiohttp
 import tempfile
 import unittest
 from unittest.mock import AsyncMock
@@ -7,6 +8,7 @@ from pathlib import Path
 from sources.normalize import as_records, get_value, normalize_record, as_tags
 from sources.state import load_snapshot, save_snapshot, validate_state
 from sources.m3u import parse_m3u
+from sources.github_playlists import fetch_repository_playlists
 from scripts.build_radio_catalog import load_source
 from sources.icecast import parse_directory
 
@@ -83,6 +85,59 @@ class PlaylistFormatTests(unittest.TestCase):
         self.assertEqual([0, 1], [item["entry_index"] for item in records])
         self.assertEqual("Example Radio", records[0]["original_title"])
         self.assertEqual("station.one", records[0]["raw_metadata"]["tvg-id"])
+
+
+
+class RepositoryPlaylistRefreshTests(unittest.IsolatedAsyncioTestCase):
+    async def test_scan_reports_counts_and_tolerates_one_missing_file(self):
+        playlist = (
+            '#EXTM3U\\n'
+            '#EXTINF:-1 tvg-id="station.one",Example Radio\\n'
+            'https://radio.example/live\\n'
+        )
+        tree = {"tree": [
+            {"path": f"stations/{name}.m3u", "type": "blob"}
+            for name in ("one", "two", "three", "four", "missing")
+        ]}
+        class FakeResponse:
+            def __init__(self, *, payload=None, body="", status=200):
+                self.payload, self.body, self.status = payload, body, status
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                return False
+            def raise_for_status(self):
+                if self.status >= 400:
+                    raise aiohttp.ClientResponseError(
+                        None, (), status=self.status, message="fixture HTTP error"
+                    )
+            async def json(self, content_type=None):
+                return self.payload
+            async def text(self):
+                return self.body
+        class FakeSession:
+            def get(self, url, headers=None):
+                if "api.github" in url:
+                    return FakeResponse(payload=tree)
+                if url.endswith("/stations/missing.m3u"):
+                    return FakeResponse(status=404)
+                return FakeResponse(body=playlist)
+
+        report = {}
+        records = await fetch_repository_playlists(
+            FakeSession(), "https://api.github.example/tree",
+            "https://raw.example/org/repo/main", report=report,
+        )
+        self.assertEqual(4, len(records))
+        self.assertEqual(5, report["discovered"])
+        self.assertEqual(5, report["processed"])
+        self.assertEqual(4, report["retrieved"])
+        self.assertEqual(4, report["succeeded"])
+        self.assertEqual(1, report["failed"])
+        self.assertEqual(0, report["skipped"])
+        self.assertEqual(0.8, report["coverageRatio"])
+        self.assertEqual("stations/missing.m3u", report["failedPlaylists"][0]["path"])
+        self.assertEqual("stations/one.m3u", records[0]["playlist_path"])
 
 
 class ProviderSnapshotTests(unittest.TestCase):
