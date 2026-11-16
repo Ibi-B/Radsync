@@ -57,7 +57,14 @@ def load_snapshot(state_dir, source_id):
     if not path.exists():
         return None
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        metadata = {}
+        with path.open("rb") as handle:
+            for prefix, event, value in ijson.parse(handle):
+                if prefix in {"schemaVersion", "source", "updatedAt", "stationCount"} and event in {"number", "string"}:
+                    metadata[prefix] = value
+        with path.open("rb") as handle:
+            stations = list(ijson.items(handle, "stations.item", use_float=True))
+        payload = {**metadata, "stations": stations}
         return payload if _valid_snapshot_payload(payload, source_id) else None
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         return None
@@ -78,7 +85,8 @@ def save_snapshot(state_dir, source_id, stations):
     if not _valid_snapshot_payload(payload, source_id):
         raise ValueError("Refusing to persist an invalid provider snapshot")
     temporary = path.with_suffix(".json.tmp")
-    temporary.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    with temporary.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
     temporary.replace(path)
     return payload
 
