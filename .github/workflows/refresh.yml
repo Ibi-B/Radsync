@@ -127,7 +127,7 @@ jobs:
             state/identity-continuity/"$CURRENT_VERSION".json
 
       - name: Persist externally verified provider snapshots
-        if: \${{ always() && steps.state_checkout.outcome == 'success' && steps.validate_state.outcome == 'success' && steps.build_catalogue.outcome != 'skipped' }}
+        if: ${{ always() && steps.state_checkout.outcome == 'success' && steps.validate_state.outcome == 'success' && steps.build_catalogue.outcome != 'skipped' }}
         run: |
           set -euo pipefail
           if [ ! -f state/diagnostics/source-report.json ]; then
@@ -136,7 +136,7 @@ jobs:
           fi
           python -m sources.state_cli validate --state-dir state
 
-          if [ -z "\${RADSYNC_S3_BUCKET:-}" ]; then
+          if [ -z "${RADSYNC_S3_BUCKET:-}" ]; then
             if compgen -G "state/manifests/providers/*.json" > /dev/null; then
               echo "::error::External provider manifests exist but RADSYNC_S3_BUCKET is not configured."
               exit 1
@@ -160,7 +160,7 @@ jobs:
           if git -C state diff --cached --quiet; then
             echo "No external manifest or diagnostic changes to persist."
           else
-            git -C state commit -m "Persist external Radsync snapshot manifests for run \${GITHUB_RUN_ID}"
+            git -C state commit -m "Persist external Radsync snapshot manifests for run ${GITHUB_RUN_ID}"
             git -C state push origin HEAD:refs/heads/radsync-state
           fi
       - name: Upload identity ambiguity diagnostics
