@@ -84,7 +84,7 @@ def _read_snapshot_metadata(path):
 
 def _iter_snapshot_stations(path):
     with Path(path).open("rb") as handle:
-        yield from ijson.items(handle, "stations.item")
+        yield from ijson.items(handle, "stations.item", use_float=True)
 
 
 def _valid_http_url(value):
