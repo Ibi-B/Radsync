@@ -25,7 +25,12 @@ from sources.somafm import fetch_channels
 from sources.github_playlists import fetch_repository_playlists
 from sources.m3u import parse_m3u
 from sources.normalize import as_records, get_value, as_text, as_tags, normalize_record
-from sources.state import load_snapshot, save_snapshot
+from sources.state import (
+    load_snapshot,
+    save_snapshot,
+    snapshot_counts,
+    validate_provider_anomaly_bounds,
+)
 
 OUTPUT = Path("output")
 RADSYNC_NAMESPACE = uuid.UUID("5d0f2f8e-3c52-5c7f-9b4f-6fbb3c7c1a42")
@@ -722,6 +727,15 @@ async def load_source(session, source_id, config, loader, state_dir):
         ]
         for station in stations:
             _set_station_provenance_status(station, source_id, "fresh")
+
+        previous_counts = snapshot_counts(state_dir, source_id)
+        validate_provider_anomaly_bounds(
+            source_id,
+            stations,
+            config.get("anomalyBounds"),
+            previous_counts,
+            playlist_refresh,
+        )
 
         if playlist_refresh:
             minimum_coverage = playlist_refresh.get("minimumCoverageRatio", 0.8)
