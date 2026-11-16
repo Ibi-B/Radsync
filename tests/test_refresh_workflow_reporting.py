@@ -82,7 +82,7 @@ class RefreshWorkflowReportingTests(unittest.TestCase):
         self.assertIn("Expire after 75 days", documentation)
         self.assertIn("Bucket Lock: Off", documentation)
         self.assertNotIn("indefinite retention rule", documentation.lower())
-        self.assertNotIn("bucket-wide", documentation.lower())
+        self.assertIn("do not create a bucket-wide", documentation.lower())
 
     def test_external_storage_credentials_are_environment_only(self):
         workflow = Path(".github/workflows/refresh.yml").read_text(encoding="utf-8")
