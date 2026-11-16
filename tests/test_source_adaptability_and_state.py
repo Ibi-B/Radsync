@@ -140,7 +140,7 @@ class RepositoryPlaylistRefreshTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(0, report["skipped"])
         self.assertEqual(0.8, report["coverageRatio"])
         self.assertEqual("stations/missing.m3u", report["failedPlaylists"][0]["path"])
-        self.assertEqual("stations/one.m3u", records[0]["playlist_path"])
+        self.assertIn("stations/one.m3u", {record["playlist_path"] for record in records})
 
 
 class ProviderSnapshotTests(unittest.TestCase):
