@@ -214,6 +214,6 @@ def validate_state(state_dir):
         try:
             if not _validate_snapshot_file(path, path.stem):
                 issues.append(f"{path.name}: unsupported schema or invalid provider snapshot")
-        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        except (OSError, ValueError, TypeError, json.JSONDecodeError, ijson.common.JSONError):
             issues.append(f"{path.name}: unreadable JSON")
     return not issues, issues
