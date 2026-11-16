@@ -60,6 +60,7 @@ class PlaylistFormatTests(unittest.TestCase):
         self.assertEqual("station.one", records[0]["station_id"])
         self.assertEqual(["Jazz"], records[0]["genres"])
         self.assertEqual("GB", records[0]["country"])
+        self.assertEqual("GB", records[0]["country_code"])
 
 
     def test_icecast_parser_handles_xml_namespaces_and_field_variants(self):
@@ -72,11 +73,11 @@ class PlaylistFormatTests(unittest.TestCase):
 
     def test_m3u_retains_playlist_entry_index_and_raw_metadata(self):
         payload = (
-            '#EXTM3U\\n'
-            '#EXTINF:-1 tvg-id="station.one" tvg-country="GB" group-title="Jazz",Example Radio\\n'
-            'https://radio.example/live\\n'
-            '#EXTINF:-1 tvg-id="station.two" group-title="News",Second Radio\\n'
-            'https://radio.example/second\\n'
+            '#EXTM3U\n'
+            '#EXTINF:-1 tvg-id="station.one" tvg-country="GB" group-title="Jazz",Example Radio\n'
+            'https://radio.example/live\n'
+            '#EXTINF:-1 tvg-id="station.two" group-title="News",Second Radio\n'
+            'https://radio.example/second\n'
         )
         records = parse_m3u(payload)
         self.assertEqual([0, 1], [item["entry_index"] for item in records])
