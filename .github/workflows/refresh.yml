@@ -33,6 +33,12 @@ jobs:
           fetch-depth: 1
           persist-credentials: true
 
+      # The state branch may contain a report from an earlier run. Clear it
+      # before any setup/test step so an early failure cannot upload stale data.
+      - name: Clear previous refresh report
+        id: clear_previous_refresh_report
+        run: rm -f state/diagnostics/source-report.json
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -135,7 +141,7 @@ jobs:
           retention-days: 14
 
       - name: Upload refresh report
-        if: ${{ always() && steps.state_checkout.outcome == 'success' }}
+        if: ${{ always() && steps.state_checkout.outcome == 'success' && steps.build_catalogue.outcome != 'skipped' }}
         uses: actions/upload-artifact@v4
         with:
           name: refresh-report-${{ github.run_id }}
