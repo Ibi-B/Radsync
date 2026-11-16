@@ -224,10 +224,6 @@ class ProviderAnomalyBoundTests(unittest.TestCase):
             )
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class SnapshotStoreAdapterTests(unittest.TestCase):
     def _station(self):
         return {
@@ -339,3 +335,6 @@ class ExternalReportRetrievalTests(unittest.TestCase):
                     fetch_external_report(state_dir, "123", output)
 
             self.assertFalse(output.exists())
+
+if __name__ == "__main__":
+    unittest.main()
