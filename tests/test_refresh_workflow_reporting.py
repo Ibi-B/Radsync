@@ -61,14 +61,14 @@ class RefreshWorkflowReportingTests(unittest.TestCase):
         self.assertIn("diagnostics/source-report.json diagnostics/identity-ambiguity.json", persist_step)
         self.assertIn("provider state was not advanced", persist_step)
         self.assertIn("--ambiguity state/diagnostics/identity-ambiguity.json", persist_step)
-        self.assertIn("finalize-external --state-dir state", persist_step)
+        self.assertIn("finalize-external --state-dir state --manifest-pushed", persist_step)
         self.assertLess(
             persist_step.index("git -C state push origin HEAD:refs/heads/radsync-state"),
             persist_step.index("finalize-external --state-dir state"),
         )
 
         restore_step = workflow[restore:validate]
-        self.assertIn("finalize-external --state-dir state", restore_step)
+        self.assertIn("finalize-external --state-dir state --manifest-pushed", restore_step)
         self.assertLess(
             restore_step.index("finalize-external --state-dir state"),
             restore_step.index("restore-external --state-dir state"),
