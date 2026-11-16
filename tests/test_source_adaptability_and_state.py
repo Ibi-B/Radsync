@@ -53,7 +53,7 @@ class SourceNormalizationTests(unittest.TestCase):
 
 class PlaylistFormatTests(unittest.TestCase):
     def test_m3u_preserves_extended_metadata_and_handles_bom(self):
-        payload = '\ufeff#EXTM3U\n#EXTINF:-1 tvg-id="station.one" tvg-country="GB" tvg-language="English" group-title="Jazz",Example Radio\nhttps://radio.example/live\n'
+        payload = '\ufeff#EXTM3U\n#EXTINF:-1 tvg-id="station.one" tvg-country="GB" tvg-country-code="GB" tvg-language="English" group-title="Jazz",Example Radio\nhttps://radio.example/live\n'
         records = parse_m3u(payload)
         self.assertEqual(1, len(records))
         self.assertEqual("Example Radio", records[0]["name"])
