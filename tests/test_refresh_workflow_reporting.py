@@ -57,6 +57,8 @@ class RefreshWorkflowReportingTests(unittest.TestCase):
         self.assertIn("publish-external", persist_step)
         self.assertIn("git -C state push origin HEAD:refs/heads/radsync-state", persist_step)
         self.assertIn(":(exclude)diagnostics/source-report.json", persist_step)
+        self.assertIn(":(exclude)diagnostics/identity-ambiguity.json", persist_step)
+        self.assertIn("diagnostics/source-report.json diagnostics/identity-ambiguity.json", persist_step)
         self.assertIn("provider state was not advanced", persist_step)
         self.assertIn("--ambiguity state/diagnostics/identity-ambiguity.json", persist_step)
         self.assertIn("finalize-external --state-dir state", persist_step)
