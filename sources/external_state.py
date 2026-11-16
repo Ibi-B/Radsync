@@ -368,7 +368,14 @@ def _s3_context():
         region_name=region,
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
-        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+        config=Config(
+            signature_version="s3v4",
+            s3={"addressing_style": "path"},
+            # R2 does not implement the AWS x-amz-checksum-* request headers.
+            # Radsync performs its own SHA-256 verification on every object.
+            request_checksum_calculation="when_required",
+            response_checksum_validation="when_required",
+        ),
     )
     configured_prefix = os.environ.get("RADSYNC_S3_PREFIX", "").strip("/ ")
     prefix = configured_prefix or "radsync/state"
