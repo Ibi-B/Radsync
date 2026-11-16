@@ -98,7 +98,7 @@ def snapshot_counts(state_dir, source_id):
     stations = 0
     streams = 0
     with path.open("rb") as handle:
-        for station in ijson.items(handle, "stations.item"):
+        for station in ijson.items(handle, "stations.item", use_float=True):
             if not isinstance(station, dict) or not station.get("name"):
                 raise ValueError(f"{path.name}: invalid station record")
             station_streams = station.get("streams")
