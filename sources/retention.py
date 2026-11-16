@@ -27,7 +27,11 @@ def _s3_context():
     client, bucket, prefix = base._s3_context()
     diagnostics = os.environ.get("RADSYNC_DIAGNOSTICS_PREFIX", "").strip("/ ")
     diagnostics_prefix = diagnostics or "radsync/diagnostics"
-    if diagnostics_prefix.startswith(prefix + "/") or prefix.startswith(diagnostics_prefix + "/"):
+    if (
+        diagnostics_prefix == prefix
+        or diagnostics_prefix.startswith(prefix + "/")
+        or prefix.startswith(diagnostics_prefix + "/")
+    ):
         raise base.ExternalStateError("State and diagnostics prefixes must be separate")
     return client, bucket, prefix, diagnostics_prefix
 
