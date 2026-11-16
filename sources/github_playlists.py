@@ -80,13 +80,19 @@ async def fetch_repository_playlists(
 
         # Retrieval and parsing are measured independently: a downloaded file
         # remains a retrieval success even when its contents cannot be parsed.
+        decode_error = None
         try:
             async with session.get(
                 playlist_url, headers={"User-Agent": "Radsync/1.0"}
             ) as response:
                 response.raise_for_status()
-                text = await response.text()
-        except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError) as error:
+                try:
+                    text = await response.text()
+                except UnicodeError as error:
+                    # The HTTP body arrived, so this is a parse/decode failure,
+                    # not a retrieval failure.
+                    decode_error = error
+        except (aiohttp.ClientError, asyncio.TimeoutError) as error:
             status = getattr(error, "status", None)
             metrics["failed"] += 1
             metrics["retrievalFailed"] += 1
@@ -105,6 +111,8 @@ async def fetch_repository_playlists(
 
         metrics["retrieved"] += 1
         try:
+            if decode_error is not None:
+                raise decode_error
             parsed_records = parse_m3u(text, base_url=playlist_url)
         except (UnicodeError, ValueError, TypeError) as error:
             metrics["parseFailed"] += 1
