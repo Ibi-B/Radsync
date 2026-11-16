@@ -37,7 +37,7 @@ jobs:
       # before any setup/test step so an early failure cannot upload stale data.
       - name: Clear previous refresh report
         id: clear_previous_refresh_report
-        run: rm -f state/diagnostics/source-report.json
+        run: mkdir -p state/diagnostics && rm -f state/diagnostics/source-report.json
 
       - uses: actions/setup-python@v5
         with:
