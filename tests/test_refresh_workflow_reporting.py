@@ -18,6 +18,13 @@ class RefreshWorkflowReportingTests(unittest.TestCase):
         clear_step = workflow[clear:setup]
         self.assertIn("run: mkdir -p state/diagnostics && rm -f state/diagnostics/source-report.json", clear_step)
 
+        persist_start = workflow.index("- name: Persist provider snapshots")
+        upload_start = workflow.index("- name: Upload refresh report", persist_start)
+        persist_step = workflow[persist_start:upload_start]
+        self.assertIn("steps.build_catalogue.outcome != 'skipped'", persist_step)
+        self.assertIn("if [ ! -f state/diagnostics/source-report.json ]; then", persist_step)
+        self.assertIn("preserving the previous provider state", persist_step)
+
     def test_refresh_report_upload_requires_build_attempt_and_runs_after_build_failure(self):
         workflow = Path(".github/workflows/refresh.yml").read_text(encoding="utf-8")
         start = workflow.index("- name: Upload refresh report")
