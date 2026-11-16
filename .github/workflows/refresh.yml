@@ -117,9 +117,13 @@ jobs:
             state/identity-continuity/"$CURRENT_VERSION".json
 
       - name: Persist provider snapshots
-        if: ${{ always() && steps.state_checkout.outcome == 'success' && steps.validate_state.outcome == 'success' }}
+        if: ${{ always() && steps.state_checkout.outcome == 'success' && steps.validate_state.outcome == 'success' && steps.build_catalogue.outcome != 'skipped' }}
         run: |
           set -euo pipefail
+          if [ ! -f state/diagnostics/source-report.json ]; then
+            echo "No current-run refresh report was produced; preserving the previous provider state."
+            exit 0
+          fi
           python -m sources.state_cli validate --state-dir state
           git -C state config user.name "github-actions[bot]"
           git -C state config user.email "41898282+github-actions[bot]@users.noreply.github.com"
