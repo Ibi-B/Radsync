@@ -58,12 +58,38 @@ class RefreshWorkflowReportingTests(unittest.TestCase):
         self.assertIn("git -C state push origin HEAD:refs/heads/radsync-state", persist_step)
         self.assertIn(":(exclude)diagnostics/source-report.json", persist_step)
         self.assertIn("provider state was not advanced", persist_step)
+        self.assertIn("--ambiguity state/diagnostics/identity-ambiguity.json", persist_step)
+        self.assertIn("finalize-external --state-dir state", persist_step)
+        self.assertLess(
+            persist_step.index("git -C state push origin HEAD:refs/heads/radsync-state"),
+            persist_step.index("finalize-external --state-dir state"),
+        )
+
+        restore_step = workflow[restore:validate]
+        self.assertIn("finalize-external --state-dir state", restore_step)
+        self.assertLess(
+            restore_step.index("finalize-external --state-dir state"),
+            restore_step.index("restore-external --state-dir state"),
+        )
+
+    def test_retention_documentation_separates_protected_and_expiring_prefixes(self):
+        documentation = Path("docs/EXTERNAL_PROVIDER_STATE.md").read_text(encoding="utf-8")
+        self.assertIn("radsync/state/current/", documentation)
+        self.assertIn("radsync/state/previous/", documentation)
+        self.assertIn("radsync/state/archive/", documentation)
+        self.assertIn("radsync/diagnostics/", documentation)
+        self.assertIn("Expire after 90 days", documentation)
+        self.assertIn("Expire after 75 days", documentation)
+        self.assertIn("Bucket Lock: Off", documentation)
+        self.assertNotIn("indefinite retention rule", documentation.lower())
+        self.assertNotIn("bucket-wide", documentation.lower())
 
     def test_external_storage_credentials_are_environment_only(self):
         workflow = Path(".github/workflows/refresh.yml").read_text(encoding="utf-8")
         self.assertIn("RADSYNC_S3_BUCKET: ${{ vars.RADSYNC_S3_BUCKET }}", workflow)
         self.assertIn("RADSYNC_S3_ACCESS_KEY_ID: ${{ secrets.RADSYNC_S3_ACCESS_KEY_ID }}", workflow)
         self.assertIn("RADSYNC_S3_SECRET_ACCESS_KEY: ${{ secrets.RADSYNC_S3_SECRET_ACCESS_KEY }}", workflow)
+        self.assertIn("RADSYNC_DIAGNOSTICS_PREFIX: ${{ vars.RADSYNC_DIAGNOSTICS_PREFIX }}", workflow)
 
 
 if __name__ == "__main__":
