@@ -548,8 +548,12 @@ def fetch_external_report(state_dir, run_id, output_path):
     }
 
 
-def finalize_external_rotation(state_dir):
-    """Delete superseded source objects only after committed pointers prove replacements."""
+def finalize_external_rotation(state_dir, *, manifest_pushed=False):
+    """Delete superseded objects only after the caller confirms pointers were pushed."""
+    if not manifest_pushed:
+        raise base.ExternalStateError(
+            "Rotation finalization requires confirmation that the manifest commit was pushed"
+        )
     state_dir = Path(state_dir)
     manifest_dir = state_dir / "manifests" / "providers"
     manifests = sorted(manifest_dir.glob("*.json")) if manifest_dir.exists() else []
