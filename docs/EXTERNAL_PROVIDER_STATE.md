@@ -25,11 +25,11 @@ The initial migration imports existing \`state/sources/*.json\` snapshots. It do
 The default state prefix is \`radsync/state\`. Provider objects are stored under four distinct prefixes:
 
 \`\`\`text
-radsync/state/current/<provider>/sha256/<digest>/active.jsonl.zst
-radsync/state/previous/<provider>/sha256/<digest>/previous.jsonl.zst
-radsync/state/archive/<provider>/<timestamp>-<digest>.jsonl.zst
-radsync/diagnostics/refresh-report-<run>-<digest>.json.zst
-radsync/diagnostics/identity-ambiguity-<run>-<digest>.json.zst
+radsync/state/current/<provider>/<publication-id>/sha256/<digest>/active.jsonl.zst
+radsync/state/previous/<provider>/<publication-id>/sha256/<digest>/previous.jsonl.zst
+radsync/state/archive/<provider>/<timestamp>-<publication-id>-<digest>.jsonl.zst
+radsync/diagnostics/refresh-report-<publication-id>-<digest>.json.zst
+radsync/diagnostics/identity-ambiguity-<publication-id>-<digest>.json.zst
 \`\`\`
 
 The digest directory is intentional. It keeps every object immutable and allows uploads to continue using \`If-None-Match: *\`. The small manifest in Git identifies the active object; fixed mutable object names are not used.
