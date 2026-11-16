@@ -141,5 +141,93 @@ class SourceFallbackTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual("last-good", report["snapshot"])
 
 
+    async def test_partial_playlist_refresh_retains_last_good_records_for_failed_files(self):
+        failed_old = {
+            "name": "Old Failed Playlist Station",
+            "streams": [{
+                "source": "iprd", "url": "https://old.example/failed",
+                "sourceRecords": [{"source": "iprd", "playlistPath": "failed.m3u"}],
+            }],
+            "_identityEvidence": [{"source": "iprd", "playlistPath": "failed.m3u"}],
+        }
+        successful_old = {
+            "name": "Old Successful Playlist Station",
+            "streams": [{
+                "source": "iprd", "url": "https://old.example/success",
+                "sourceRecords": [{"source": "iprd", "playlistPath": "success.m3u"}],
+            }],
+            "_identityEvidence": [{"source": "iprd", "playlistPath": "success.m3u"}],
+        }
+        fresh = {
+            "name": "Fresh Playlist Station",
+            "streams": [{"source": "iprd", "url": "https://fresh.example/live"}],
+        }
+        async def loader(session, config, priority):
+            config["_playlistRefresh"] = {
+                "discovered": 5, "processed": 5, "retrieved": 4,
+                "succeeded": 4, "failed": 1, "skipped": 0,
+                "coverageRatio": 0.8, "minimumCoverageRatio": 0.8,
+                "failedPlaylists": [{"path": "failed.m3u", "error": "404", "status": 404}],
+                "skippedPlaylists": [],
+            }
+            return [fresh]
+
+        with tempfile.TemporaryDirectory() as temporary:
+            save_snapshot(temporary, "iprd", [failed_old, successful_old])
+            stations, report = await load_source(
+                None, "iprd", {"enabled": True, "priority": 80}, loader, temporary,
+            )
+        names = {station["name"] for station in stations}
+        self.assertEqual(
+            {"Fresh Playlist Station", "Old Failed Playlist Station"}, names
+        )
+        self.assertNotIn("Old Successful Playlist Station", names)
+        self.assertEqual("partial", report["status"])
+        self.assertEqual(5, report["playlistRefresh"]["discovered"])
+        self.assertEqual(1, report["playlistRefresh"]["failed"])
+
+    async def test_partial_playlist_refresh_without_matching_provenance_uses_full_last_good(self):
+        old = {"name": "Saved Station", "streams": [{"source": "iprd", "url": "https://saved.example/live"}]}
+        async def loader(session, config, priority):
+            config["_playlistRefresh"] = {
+                "discovered": 5, "processed": 5, "retrieved": 4,
+                "succeeded": 4, "failed": 1, "skipped": 0,
+                "coverageRatio": 0.8, "minimumCoverageRatio": 0.8,
+                "failedPlaylists": [{"path": "missing-provenance.m3u"}],
+                "skippedPlaylists": [],
+            }
+            return [{"name": "Fresh Station", "streams": [{"source": "iprd", "url": "https://fresh.example/live"}]}]
+
+        with tempfile.TemporaryDirectory() as temporary:
+            save_snapshot(temporary, "iprd", [old])
+            stations, report = await load_source(
+                None, "iprd", {"enabled": True, "priority": 80}, loader, temporary,
+            )
+        self.assertEqual(["Saved Station"], [station["name"] for station in stations])
+        self.assertEqual("stale", report["status"])
+        self.assertIn("cannot map failed files", report["error"])
+
+    async def test_playlist_coverage_collapse_restores_last_good_snapshot(self):
+        old = {"name": "Saved Station", "streams": [{"source": "iprd", "url": "https://saved.example/live"}]}
+        async def loader(session, config, priority):
+            config["_playlistRefresh"] = {
+                "discovered": 5, "processed": 5, "retrieved": 2,
+                "succeeded": 2, "failed": 3, "skipped": 0,
+                "coverageRatio": 0.4, "minimumCoverageRatio": 0.8,
+                "failedPlaylists": [{"path": "a.m3u"}, {"path": "b.m3u"}, {"path": "c.m3u"}],
+                "skippedPlaylists": [],
+            }
+            raise ValueError("GitHub playlist coverage collapsed")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            save_snapshot(temporary, "iprd", [old])
+            stations, report = await load_source(
+                None, "iprd", {"enabled": True, "priority": 80}, loader, temporary,
+            )
+        self.assertEqual(["Saved Station"], [station["name"] for station in stations])
+        self.assertEqual("stale", report["status"])
+        self.assertEqual(0.4, report["playlistRefresh"]["coverageRatio"])
+
+
 if __name__ == "__main__":
     unittest.main()
