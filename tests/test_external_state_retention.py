@@ -161,6 +161,25 @@ class RetentionLayoutTests(unittest.TestCase):
         self.assertIn(third_previous, self.client.objects)
         self.assertNotIn("rotationCleanup", self._manifest())
 
+    def test_finalize_refuses_to_delete_old_current_when_replacement_bytes_are_corrupt(self):
+        self._publish("Version One", "1")
+        self._publish("Version Two", "2")
+        manifest = self._manifest()
+        cleanup = manifest["rotationCleanup"][0]
+        old_current = cleanup["deleteKey"]
+        replacement = cleanup["replacementKey"]
+        self.assertIn(old_current, self.client.objects)
+
+        # Keep the provider's SHA metadata intact while corrupting the stored
+        # bytes. Finalization must hash the download, not trust HEAD metadata.
+        self.client.objects[replacement]["body"] = b"corrupt replacement payload"
+        with self.assertRaisesRegex(retention.base.ExternalStateError, "checksum mismatch"):
+            retention.finalize_external_rotation(self.state_dir)
+
+        self.assertIn(old_current, self.client.objects)
+        self.assertIn(replacement, self.client.objects)
+        self.assertIn("rotationCleanup", self._manifest())
+
     def test_failed_candidate_verification_does_not_change_current_or_previous(self):
         self._publish("Version One", "1")
         self._publish("Version Two", "2")
