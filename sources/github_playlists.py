@@ -11,6 +11,23 @@ from sources.normalize import as_records
 MIN_PLAYLIST_COVERAGE = 0.80
 
 
+def _is_explicit_valid_empty_m3u(text):
+    """Recognize only a header-only/comment-only M3U as an intentional empty playlist."""
+    lines = [line.strip() for line in (text or "").lstrip("\ufeff").splitlines() if line.strip()]
+    if not lines or lines[0].upper() != "#EXTM3U":
+        return False
+    for line in lines[1:]:
+        if line.startswith("#"):
+            # An EXTINF declaration means the playlist intended to provide an
+            # entry, even if it is malformed or its stream URL is missing.
+            if line.upper().startswith("#EXTINF:"):
+                return False
+            continue
+        # Bare URLs or other payload lines are not an explicit empty playlist.
+        return False
+    return True
+
+
 async def fetch_repository_playlists(
     session: aiohttp.ClientSession,
     repo_api_url: str,
@@ -27,10 +44,18 @@ async def fetch_repository_playlists(
         "succeeded": 0,
         "failed": 0,
         "skipped": 0,
+        "parsedSuccessfully": 0,
+        "validEmpty": 0,
+        "unparseable": 0,
+        "recordsProduced": 0,
         "failedPlaylists": [],
         "skippedPlaylists": [],
+        "validEmptyPlaylists": [],
         "minimumCoverageRatio": MIN_PLAYLIST_COVERAGE,
+        "minimumParseCoverageRatio": MIN_PLAYLIST_COVERAGE,
         "coverageRatio": 0.0,
+        "parseCoverageRatio": 0.0,
+        "recordProductionCoverageRatio": 0.0,
     })
 
     # Failure to retrieve or decode the repository tree is systemic: never use
@@ -91,13 +116,26 @@ async def fetch_repository_playlists(
         metrics["retrieved"] += 1
         if not records:
             metrics["skipped"] += 1
-            metrics["skippedPlaylists"].append({
-                "path": path,
-                "reason": "No parseable named stream entries",
-            })
+            if _is_explicit_valid_empty_m3u(text):
+                metrics["validEmpty"] += 1
+                metrics["parsedSuccessfully"] += 1
+                metrics["validEmptyPlaylists"].append({
+                    "path": path,
+                    "classification": "valid-empty",
+                    "reason": "Explicit #EXTM3U header with no entries or payload",
+                })
+            else:
+                metrics["unparseable"] += 1
+                metrics["skippedPlaylists"].append({
+                    "path": path,
+                    "classification": "unparseable",
+                    "reason": "Retrieved playlist did not produce named stream records and was not explicitly empty",
+                })
             continue
 
         metrics["succeeded"] += 1
+        metrics["parsedSuccessfully"] += 1
+        metrics["recordsProduced"] += len(records)
         for record in records:
             record["playlist_path"] = path
             record["playlist_url"] = playlist_url
@@ -111,12 +149,24 @@ async def fetch_repository_playlists(
     metrics["coverageRatio"] = round(
         (metrics["discovered"] - metrics["failed"]) / metrics["discovered"], 4
     )
+    metrics["parseCoverageRatio"] = round(
+        metrics["parsedSuccessfully"] / metrics["discovered"], 4
+    )
+    metrics["recordProductionCoverageRatio"] = round(
+        metrics["succeeded"] / metrics["discovered"], 4
+    )
     if metrics["retrieved"] == 0:
         raise ValueError("No GitHub playlists could be retrieved; protecting last-good snapshot")
     if metrics["coverageRatio"] < MIN_PLAYLIST_COVERAGE:
         raise ValueError(
-            "GitHub playlist coverage collapsed: "
+            "GitHub playlist retrieval coverage collapsed: "
             f"{metrics['coverageRatio']:.1%} retrieved, "
+            f"{MIN_PLAYLIST_COVERAGE:.0%} required"
+        )
+    if metrics["parseCoverageRatio"] < MIN_PLAYLIST_COVERAGE:
+        raise ValueError(
+            "GitHub playlist parse coverage collapsed: "
+            f"{metrics['parseCoverageRatio']:.1%} parsed or explicitly empty, "
             f"{MIN_PLAYLIST_COVERAGE:.0%} required"
         )
 

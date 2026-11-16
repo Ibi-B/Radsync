@@ -55,3 +55,12 @@ These are separate concepts. One station can have multiple provider IDs and many
 - Truncated playlist discovery or failed playlist retrieval cannot replace a provider's last-good snapshot with partial data.
 - Regression tests prove multi-ID retention, exact-ID matching, provenance retention on shared endpoints, and M3U metadata retention.
 - No identity-matching thresholds or canonical UUID fail-closed rules are weakened in these stages.
+
+
+## Partial playlist refresh safeguards
+
+- Provider IDs remain qualified by their original provider at stream level under `providerSources`. The legacy flattened `sourceStationIds` field is compatibility-only and must never drive identity matching when a provider map is available.
+- Retrieval coverage and parse coverage are reported separately. Record-production coverage is also reported, because a retrieved playlist that emits no records is not equivalent to one that successfully contributed stations.
+- A header-only/comment-only `#EXTM3U` file with no entries or payload is explicitly classified as valid-empty. A playlist that contains an EXTINF entry, URL, or other payload but produces no named station records is unparseable, not empty.
+- Every failed or unparseable playlist path must be mapped to prior source provenance before a partial snapshot can be saved. If even one path cannot be mapped, restore the entire last-good provider snapshot.
+- Explicit valid-empty playlists may contribute no new records; all ambiguous empty parses preserve their prior records or force full last-good restoration.
