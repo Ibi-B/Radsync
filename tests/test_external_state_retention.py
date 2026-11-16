@@ -190,6 +190,20 @@ class RetentionLayoutTests(unittest.TestCase):
         self.assertIn(old_current, self.client.objects)
         self.assertIn("rotationCleanup", self._manifest())
 
+    def test_identical_snapshots_use_distinct_immutable_publication_keys(self):
+        self._publish("Unchanged Snapshot", "1")
+        first = self._manifest()
+        first_key = first["objectKey"]
+        first_digest = first["sha256"]
+
+        self._publish("Unchanged Snapshot", "2")
+        second = self._manifest()
+        self.assertEqual(first_digest, second["sha256"])
+        self.assertNotEqual(first_key, second["objectKey"])
+        self.assertIn(first_key, self.client.objects)
+        self.assertTrue(second["objectKey"].startswith("radsync/state/current/fixture/"))
+        self.assertTrue(second["previous"]["objectKey"].startswith("radsync/state/previous/fixture/"))
+
     def test_failed_candidate_verification_does_not_change_current_or_previous(self):
         self._publish("Version One", "1")
         self._publish("Version Two", "2")
