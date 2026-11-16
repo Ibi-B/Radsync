@@ -196,8 +196,7 @@ class RepositoryPlaylistRefreshTests(unittest.IsolatedAsyncioTestCase):
             }]
 
         report = {}
-        with patch("sources.github_playlists.parse_m3u", side_effect=parse_fixture), \\
-             patch("sources.github_playlists.MIN_PLAYLIST_COVERAGE", 0.0):
+        with patch("sources.github_playlists.parse_m3u", side_effect=parse_fixture), patch("sources.github_playlists.MIN_PLAYLIST_COVERAGE", 0.0):
             records = await fetch_repository_playlists(
                 FakeSession(), "https://api.github.example/tree",
                 "https://raw.example/org/repo/main", report=report,
