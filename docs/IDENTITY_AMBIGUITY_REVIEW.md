@@ -10,20 +10,22 @@ This diagnostic predates the source-preservation PR. It contains no provider sta
 
 ## Group-by-group evidence review
 
-| Group | Candidate records | Exact URL strings | Providers | Evidence-based assessment |
+| Group | Candidate records | Exact URL strings | Providers | Recommended station action | Evidence-based assessment |
 |---|---:|---:|---|---|
-| Atlantica Oldies | 2 | 1 | IPRD | Same provider and exact endpoint repeated. Likely duplicate source observations; retain both provenance observations. Canonical station merge still requires source-entry evidence. |
-| Magic Radio | 9 | 7 | Icecast, IPRD | Several distinct stream endpoints/formats plus two repeated IPRD endpoint observations. Preserve all seven URL variants; do not collapse the station records solely by name. |
-| Radio Panamericana | 3 | 2 | IPRD, Alon Drilich | IPRD endpoint repeated; the second provider has a different Zeno URL. Keep both endpoints; relationship between the two provider records remains unproven. |
-| J-Club Powerplay HipHop | 3 | 1 | IPRD, Alon Drilich | Same exact endpoint across providers, with a repeated Alon observation. Endpoint equivalence is strong; canonical station equivalence still needs upstream identity/provenance. |
-| Capital Radio | 4 | 2 | IPRD, Alon Drilich | Two exact URLs are cross-listed across providers; one IPRD URL repeats. “Capital Radio” is generic and there are no provider IDs or metadata to prove identity. Preserve both endpoints and defer station merge. |
-| Radio Regenbogen Guns N' Roses | 2 | 1 | IPRD | Same provider and exact endpoint repeated. Likely duplicate source observations; preserve both source records until playlist entry provenance confirms their origin. |
-| Top FM | 2 | 1 | IPRD | Same provider and exact endpoint repeated. Likely duplicate source observations; retain provenance and do not alter canonical identity yet. |
-| Delta FM | 3 | 2 | IPRD, Alon Drilich | IPRD endpoint repeats; Alon supplies a different endpoint. Preserve both endpoints; same-name cross-provider identity is not established. |
-| Métis FM | 2 | 1 | IPRD | Same provider and exact endpoint repeated. Likely duplicate source observations; retain both provenance records. |
-| Radio Radio | 3 | 2 | IPRD | One IPRD endpoint repeats and another distinct endpoint exists. Preserve both endpoint alternatives; do not treat the second URL as a new station or as a confirmed variant without provider evidence. |
-| GHERLA | 3 | 1 | IPRD, Alon Drilich | Same exact endpoint appears under both providers, with a repeated IPRD observation. Strong endpoint overlap, but no station IDs or metadata establish the cross-provider relationship. |
-| J-Pop Powerplay | 3 | 2 | IPRD, Alon Drilich | Alon endpoint repeats. IPRD and Alon URLs share host/port/path but differ by HTTP/HTTPS; preserve both URL variants until endpoint equivalence and station identity are confirmed. |
+| Atlantica Oldies | 2 | 1 | IPRD | Needs manual evidence | Same provider and exact endpoint repeated. Likely duplicate source observations; retain both provenance observations. Canonical station merge still requires source-entry evidence. |
+| Magic Radio | 9 | 7 | Icecast, IPRD | Needs manual evidence | Several distinct stream endpoints/formats plus two repeated IPRD endpoint observations. Preserve all seven URL variants; do not collapse the station records solely by name. |
+| Radio Panamericana | 3 | 2 | IPRD, Alon Drilich | Needs manual evidence | IPRD endpoint repeated; the second provider has a different Zeno URL. Keep both endpoints; relationship between the two provider records remains unproven. |
+| J-Club Powerplay HipHop | 3 | 1 | IPRD, Alon Drilich | Needs manual evidence | Same exact endpoint across providers, with a repeated Alon observation. Endpoint equivalence is strong; canonical station equivalence still needs upstream identity/provenance. |
+| Capital Radio | 4 | 2 | IPRD, Alon Drilich | Needs manual evidence | Two exact URLs are cross-listed across providers; one IPRD URL repeats. “Capital Radio” is generic and there are no provider IDs or metadata to prove identity. Preserve both endpoints and defer station merge. |
+| Radio Regenbogen Guns N' Roses | 2 | 1 | IPRD | Needs manual evidence | Same provider and exact endpoint repeated. Likely duplicate source observations; preserve both source records until playlist entry provenance confirms their origin. |
+| Top FM | 2 | 1 | IPRD | Needs manual evidence | Same provider and exact endpoint repeated. Likely duplicate source observations; retain provenance and do not alter canonical identity yet. |
+| Delta FM | 3 | 2 | IPRD, Alon Drilich | Needs manual evidence | IPRD endpoint repeats; Alon supplies a different endpoint. Preserve both endpoints; same-name cross-provider identity is not established. |
+| Métis FM | 2 | 1 | IPRD | Needs manual evidence | Same provider and exact endpoint repeated. Likely duplicate source observations; retain both provenance records. |
+| Radio Radio | 3 | 2 | IPRD | Needs manual evidence | One IPRD endpoint repeats and another distinct endpoint exists. Preserve both endpoint alternatives; do not treat the second URL as a new station or as a confirmed variant without provider evidence. |
+| GHERLA | 3 | 1 | IPRD, Alon Drilich | Needs manual evidence | Same exact endpoint appears under both providers, with a repeated IPRD observation. Strong endpoint overlap, but no station IDs or metadata establish the cross-provider relationship. |
+| J-Pop Powerplay | 3 | 2 | IPRD, Alon Drilich | Needs manual evidence | Alon endpoint repeats. IPRD and Alon URLs share host/port/path but differ by HTTP/HTTPS; preserve both URL variants until endpoint equivalence and station identity are confirmed. |
+
+**Disposition for all 12 groups: needs manual evidence for canonical station identity.** Some repeated same-provider/same-URL observations are likely redundant source records, but the old diagnostic lacks playlist path and entry index, so even those cannot yet be proven to be duplicate playlist entries. Once provenance is available, consolidate only exact duplicate endpoint observations while retaining all source-record references. Do not collapse distinct URLs, formats, or provider observations.
 
 ## What can be concluded now
 
