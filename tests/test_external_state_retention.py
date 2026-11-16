@@ -191,12 +191,24 @@ class RetentionLayoutTests(unittest.TestCase):
         self.assertIn("rotationCleanup", self._manifest())
 
     def test_identical_snapshots_use_distinct_immutable_publication_keys(self):
-        self._publish("Unchanged Snapshot", "1")
+        self._save("Unchanged Snapshot")
+        snapshot_file = self.state_dir / "sources" / "fixture.json"
+        original_snapshot = snapshot_file.read_bytes()
+
+        retention.publish_external_snapshots(
+            self.state_dir, str(self.config_path), run_id="1"
+        )
         first = self._manifest()
         first_key = first["objectKey"]
         first_digest = first["sha256"]
 
-        self._publish("Unchanged Snapshot", "2")
+        # Republish the exact same last-good snapshot bytes, including its
+        # updatedAt metadata, so the compressed content digest is identical.
+        snapshot_file.parent.mkdir(parents=True, exist_ok=True)
+        snapshot_file.write_bytes(original_snapshot)
+        retention.publish_external_snapshots(
+            self.state_dir, str(self.config_path), run_id="2"
+        )
         second = self._manifest()
         self.assertEqual(first_digest, second["sha256"])
         self.assertNotEqual(first_key, second["objectKey"])
