@@ -10,12 +10,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "command",
-        choices=("validate", "restore-external", "publish-external"),
+        choices=("validate", "restore-external", "publish-external", "fetch-external-report"),
     )
     parser.add_argument("--state-dir", required=True)
     parser.add_argument("--config", default="config/sources.json")
     parser.add_argument("--report", default="state/diagnostics/source-report.json")
     parser.add_argument("--run-id", default=None)
+    parser.add_argument("--output", default=None)
     args = parser.parse_args()
 
     if args.command == "validate":
@@ -30,11 +31,16 @@ def main():
     from sources.external_state import (
         publish_external_snapshots,
         restore_external_snapshots,
+        fetch_external_report,
     )
 
     try:
         if args.command == "restore-external":
             result = restore_external_snapshots(args.state_dir, args.config)
+        elif args.command == "fetch-external-report":
+            if not args.run_id or not args.output:
+                parser.error("fetch-external-report requires --run-id and --output")
+            result = fetch_external_report(args.state_dir, args.run_id, args.output)
         else:
             result = publish_external_snapshots(
                 args.state_dir,
