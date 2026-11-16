@@ -459,25 +459,59 @@ async def load_source(session, source_id, config, loader, state_dir):
             "error": None,
         }
 
+    playlist_refresh = None
     try:
         stations = await loader(session, config, priority)
+        playlist_refresh = config.pop("_playlistRefresh", None)
         stations = [
             station for station in stations
             if station.get("name") and station.get("streams")
             and any(valid_stream_url(stream.get("url")) for stream in station.get("streams", []))
         ]
+        if playlist_refresh and playlist_refresh.get("failedPlaylists"):
+            failed_paths = {
+                item.get("path") for item in playlist_refresh["failedPlaylists"]
+                if item.get("path")
+            }
+            if playlist_refresh.get("coverageRatio", 0) < playlist_refresh.get("minimumCoverageRatio", 0.8):
+                raise ValueError("Playlist coverage below the configured safe threshold")
+            previous = load_snapshot(state_dir, source_id)
+            if not previous:
+                raise ValueError(
+                    "Partial playlist refresh has no last-good snapshot to restore failed playlists"
+                )
+            retained = []
+            for station in previous["stations"]:
+                evidence = list(station.get("_identityEvidence") or [])
+                if not evidence:
+                    evidence = [
+                        item for stream in station.get("streams", [])
+                        for item in stream.get("sourceRecords", [])
+                    ]
+                if any(item.get("playlistPath") in failed_paths for item in evidence):
+                    retained.append(station)
+            if not retained:
+                raise ValueError(
+                    "Partial playlist refresh cannot map failed files to last-good provenance"
+                )
+            # Keep prior records for failed files and refresh successful files.
+            # Any overlap is reconciled by the normal conservative identity matcher.
+            stations.extend(retained)
+
         if not stations:
             raise ValueError("Source returned no usable stations; protecting its last-good snapshot")
         save_snapshot(state_dir, source_id, stations)
         return stations, {
             "source": source_id,
             "enabled": True,
-            "status": "ok",
+            "status": "partial" if playlist_refresh and playlist_refresh.get("failed") else "ok",
             "stationCount": len(stations),
-            "snapshot": "refreshed",
+            "snapshot": "refreshed-with-last-good-playlists" if playlist_refresh and playlist_refresh.get("failed") else "refreshed",
+            "playlistRefresh": playlist_refresh,
             "error": None,
         }
     except Exception as error:
+        playlist_refresh = playlist_refresh or config.pop("_playlistRefresh", None)
         snapshot = load_snapshot(state_dir, source_id)
         if snapshot:
             restored_stations = snapshot["stations"]
@@ -497,6 +531,7 @@ async def load_source(session, source_id, config, loader, state_dir):
                 "stationCount": len(snapshot["stations"]),
                 "snapshot": "last-good",
                 "snapshotUpdatedAt": snapshot.get("updatedAt"),
+                "playlistRefresh": playlist_refresh,
                 "error": str(error),
             }
         return [], {
@@ -505,6 +540,7 @@ async def load_source(session, source_id, config, loader, state_dir):
             "status": "failed",
             "stationCount": 0,
             "snapshot": "unavailable",
+            "playlistRefresh": playlist_refresh,
             "error": str(error),
         }
 
@@ -699,11 +735,14 @@ async def main(state_dir=Path("state")):
         return result
 
     async def load_repo_playlists(session, source_id, source_config, priority):
+        playlist_refresh = {}
         raw = await fetch_repository_playlists(
             session,
             source_config["repoApiUrl"],
             source_config["rawBaseUrl"],
+            report=playlist_refresh,
         )
+        source_config["_playlistRefresh"] = playlist_refresh
         result = []
         for item in raw:
             evidence_record = {
