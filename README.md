@@ -89,3 +89,8 @@ Duplicate source records may be collapsed only when the endpoint is demonstrably
 GitHub playlist discovery processes every playlist file returned by the repository tree. A truncated tree or failed playlist fetch is treated as an incomplete provider refresh, so the existing last-good snapshot is protected rather than silently replacing it with partial data.
 
 See docs/SOURCE_PRESERVATION_POLICY.md for the governing invariants and evidence rules.
+
+
+## External provider-state storage
+
+The external snapshot format, SQLite staging schema, provider-specific anomaly bounds, initial migration behavior, and required GitHub Actions object-store configuration are documented in [docs/EXTERNAL_PROVIDER_STATE.md](docs/EXTERNAL_PROVIDER_STATE.md). The first successful external publish imports the existing Git-hosted last-good snapshots; it does not synthesize missing historical provenance. External objects are verified before local last-good state is promoted or legacy JSON snapshots are removed from the state branch.

@@ -1,2 +1,5 @@
 aiohttp>=3.9.0
 jsonschema>=4.21.0
+boto3>=1.36.0
+ijson>=3.2.3
+zstandard>=0.22.0

@@ -25,7 +25,9 @@ from sources.somafm import fetch_channels
 from sources.github_playlists import fetch_repository_playlists
 from sources.m3u import parse_m3u
 from sources.normalize import as_records, get_value, as_text, as_tags, normalize_record
-from sources.state import load_snapshot, save_snapshot
+from sources.state import validate_provider_anomaly_bounds
+from sources.snapshot_store import LocalFileSnapshotStore, SnapshotStore
+
 
 OUTPUT = Path("output")
 RADSYNC_NAMESPACE = uuid.UUID("5d0f2f8e-3c52-5c7f-9b4f-6fbb3c7c1a42")
@@ -530,10 +532,8 @@ def _atomic_write_json(path, payload):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    with temporary.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
     temporary.replace(path)
 
 
@@ -694,7 +694,8 @@ def _enrich_source_report(report, stations):
     return report
 
 
-async def load_source(session, source_id, config, loader, state_dir):
+async def load_source(session, source_id, config, loader, state_dir,
+                      snapshot_store: SnapshotStore | None = None):
     enabled = config.get("enabled", False)
     priority = config.get("priority", 50)
     ingestion_started_at = datetime.now(timezone.utc).isoformat()
@@ -712,6 +713,7 @@ async def load_source(session, source_id, config, loader, state_dir):
         }
 
     playlist_refresh = None
+    snapshot_store = snapshot_store or LocalFileSnapshotStore(state_dir)
     try:
         stations = await loader(session, config, priority)
         playlist_refresh = config.pop("_playlistRefresh", None)
@@ -722,6 +724,16 @@ async def load_source(session, source_id, config, loader, state_dir):
         ]
         for station in stations:
             _set_station_provenance_status(station, source_id, "fresh")
+
+        previous_snapshot = snapshot_store.verify_snapshot(source_id)
+        previous_counts = previous_snapshot
+        validate_provider_anomaly_bounds(
+            source_id,
+            stations,
+            config.get("anomalyBounds"),
+            previous_counts,
+            playlist_refresh,
+        )
 
         if playlist_refresh:
             minimum_coverage = playlist_refresh.get("minimumCoverageRatio", 0.8)
@@ -746,7 +758,7 @@ async def load_source(session, source_id, config, loader, state_dir):
                 incomplete_paths.add(path)
 
             if incomplete_paths:
-                previous = load_snapshot(state_dir, source_id)
+                previous = snapshot_store.load_snapshot(source_id)
                 if not previous:
                     raise ValueError(
                         "Partial playlist refresh has no last-good snapshot to restore incomplete playlists"
@@ -792,7 +804,7 @@ async def load_source(session, source_id, config, loader, state_dir):
 
         if not stations:
             raise ValueError("Source returned no usable stations; protecting its last-good snapshot")
-        save_snapshot(state_dir, source_id, stations)
+        snapshot_store.save_snapshot(source_id, stations)
         completed_at = datetime.now(timezone.utc).isoformat()
         partial = bool(playlist_refresh and (
             playlist_refresh.get("failed") or playlist_refresh.get("unparseable")
@@ -812,7 +824,7 @@ async def load_source(session, source_id, config, loader, state_dir):
         }
     except Exception as error:
         playlist_refresh = playlist_refresh or config.pop("_playlistRefresh", None)
-        snapshot = load_snapshot(state_dir, source_id)
+        snapshot = snapshot_store.load_snapshot(source_id)
         if snapshot:
             restored_stations = snapshot["stations"]
             for station in restored_stations:
@@ -853,7 +865,7 @@ async def load_source(session, source_id, config, loader, state_dir):
             "error": str(error),
         }
 
-async def main(state_dir=Path("state")):
+async def main(state_dir=Path("state"), snapshot_store: SnapshotStore | None = None):
     version = int(datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f"))
     version_dir = OUTPUT / f"v{version}"
     diagnostics_path = Path(state_dir) / "diagnostics" / "identity-ambiguity.json"
@@ -1085,18 +1097,19 @@ async def main(state_dir=Path("state")):
             ))
         return result
 
+    snapshot_store = snapshot_store or LocalFileSnapshotStore(state_dir)
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120)) as session:
         results = await asyncio.gather(
-            load_source(session, "radio-browser", config["radio_browser"], load_radio_browser, state_dir),
-            load_source(session, "airwavedb", config["airwavedb"], load_airwavedb, state_dir),
-            load_source(session, "icecast", config["icecast"], load_icecast, state_dir),
-            load_source(session, "iptv-org-radio", config["iptv_org_radio"], lambda s, c, p: load_m3u(s, "iptv-org-radio", c["url"], p), state_dir),
-            load_source(session, "iptv-org-streams", config["iptv_org_streams"], load_iptv_streams, state_dir),
-            load_source(session, "pulham-hq", config["pulham_hq"], lambda s, c, p: load_m3u(s, "pulham-hq", c["url"], p), state_dir),
-            load_source(session, "iprd", config["iprd"], lambda s, c, p: load_repo_playlists(s, "iprd", c, p), state_dir),
-            load_source(session, "alon-drilich", config["alon_drilich"], lambda s, c, p: load_repo_playlists(s, "alon-drilich", c, p), state_dir),
-            load_source(session, "somafm", config["somafm"], load_somafm, state_dir),
-            load_source(session, "bbc-radio", config["bbc_radio"], lambda s, c, p: load_m3u(s, "bbc-radio", c["url"], p), state_dir),
+            load_source(session, "radio-browser", config["radio_browser"], load_radio_browser, state_dir, snapshot_store),
+            load_source(session, "airwavedb", config["airwavedb"], load_airwavedb, state_dir, snapshot_store),
+            load_source(session, "icecast", config["icecast"], load_icecast, state_dir, snapshot_store),
+            load_source(session, "iptv-org-radio", config["iptv_org_radio"], lambda s, c, p: load_m3u(s, "iptv-org-radio", c["url"], p), state_dir, snapshot_store),
+            load_source(session, "iptv-org-streams", config["iptv_org_streams"], load_iptv_streams, state_dir, snapshot_store),
+            load_source(session, "pulham-hq", config["pulham_hq"], lambda s, c, p: load_m3u(s, "pulham-hq", c["url"], p), state_dir, snapshot_store),
+            load_source(session, "iprd", config["iprd"], lambda s, c, p: load_repo_playlists(s, "iprd", c, p), state_dir, snapshot_store),
+            load_source(session, "alon-drilich", config["alon_drilich"], lambda s, c, p: load_repo_playlists(s, "alon-drilich", c, p), state_dir, snapshot_store),
+            load_source(session, "somafm", config["somafm"], load_somafm, state_dir, snapshot_store),
+            load_source(session, "bbc-radio", config["bbc_radio"], lambda s, c, p: load_m3u(s, "bbc-radio", c["url"], p), state_dir, snapshot_store),
         )
 
     stations_by_name = {}

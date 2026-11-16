@@ -2,54 +2,116 @@
   "radio_browser": {
     "enabled": true,
     "url": "https://de1.api.radio-browser.info/json/stations",
-    "priority": 90
+    "priority": 90,
+    "anomalyBounds": {
+      "minStationCount": 800,
+      "maxStationDropRatio": 0.1,
+      "minStreamCount": 800,
+      "maxStreamDropRatio": 0.15
+    }
   },
   "airwavedb": {
     "enabled": true,
     "stationsUrl": "https://raw.githubusercontent.com/AirwaveDB/api/main/v1/stations.json",
     "streamsUrl": "https://raw.githubusercontent.com/AirwaveDB/api/main/v1/streams.json",
-    "priority": 85
+    "priority": 85,
+    "anomalyBounds": {
+      "minStationCount": 50000,
+      "maxStationDropRatio": 0.1,
+      "minStreamCount": 52000,
+      "maxStreamDropRatio": 0.15
+    }
   },
   "icecast": {
     "enabled": true,
     "url": "http://dir.xiph.org/yp.xml",
-    "priority": 55
+    "priority": 55,
+    "anomalyBounds": {
+      "minStationCount": 10000,
+      "maxStationDropRatio": 0.1,
+      "minStreamCount": 10000,
+      "maxStreamDropRatio": 0.15
+    }
   },
   "iptv_org_radio": {
     "enabled": true,
     "url": "https://iptv-org.github.io/iptv/radio.m3u",
-    "priority": 65
+    "priority": 65,
+    "anomalyBounds": {
+      "minStationCount": 1,
+      "maxStationDropRatio": 0.1,
+      "minStreamCount": 1,
+      "maxStreamDropRatio": 0.15
+    }
   },
   "iptv_org_streams": {
     "enabled": true,
     "url": "https://iptv-org.github.io/api/streams.json",
-    "priority": 70
+    "priority": 70,
+    "anomalyBounds": {
+      "minStationCount": 15000,
+      "maxStationDropRatio": 0.1,
+      "minStreamCount": 15000,
+      "maxStreamDropRatio": 0.15
+    }
   },
   "pulham_hq": {
     "enabled": true,
     "url": "https://raw.githubusercontent.com/Pulham/Internet-Radio-HQ-URL-playlists/main/Radio%20Stations.m3u8",
-    "priority": 92
+    "priority": 92,
+    "anomalyBounds": {
+      "minStationCount": 1,
+      "maxStationDropRatio": 0.1,
+      "minStreamCount": 1,
+      "maxStreamDropRatio": 0.15
+    }
   },
   "iprd": {
     "enabled": true,
     "repoApiUrl": "https://api.github.com/repos/iprd-org/IPRD/git/trees/main?recursive=1",
     "rawBaseUrl": "https://raw.githubusercontent.com/iprd-org/IPRD/main/",
-    "priority": 80
+    "priority": 80,
+    "anomalyBounds": {
+      "minStationCount": 35000,
+      "maxStationDropRatio": 0.1,
+      "minStreamCount": 35000,
+      "maxStreamDropRatio": 0.15,
+      "minRecordProductionCoverage": 0.8
+    }
   },
   "alon_drilich": {
     "enabled": true,
     "repoApiUrl": "https://api.github.com/repos/AlonDrilich/radio-playlists/git/trees/main?recursive=1",
     "rawBaseUrl": "https://raw.githubusercontent.com/AlonDrilich/radio-playlists/main/",
-    "priority": 60
+    "priority": 60,
+    "anomalyBounds": {
+      "minStationCount": 30000,
+      "maxStationDropRatio": 0.1,
+      "minStreamCount": 30000,
+      "maxStreamDropRatio": 0.15,
+      "minRecordProductionCoverage": 0.8
+    }
   },
   "somafm": {
     "enabled": true,
     "url": "https://somafm.com/channels.json",
-    "priority": 95
+    "priority": 95,
+    "anomalyBounds": {
+      "minStationCount": 40,
+      "maxStationDropRatio": 0.1,
+      "minStreamCount": 150,
+      "maxStreamDropRatio": 0.15
+    }
   },
   "bbc_radio": {
     "enabled": true,
     "url": "https://gist.githubusercontent.com/casaper/ddec35d21a0158628fccbab7876b7ef3/raw/UK-BBC-Radio.m3u",
-    "priority": 94
+    "priority": 94,
+    "anomalyBounds": {
+      "minStationCount": 8,
+      "maxStationDropRatio": 0.1,
+      "minStreamCount": 8,
+      "maxStreamDropRatio": 0.15
+    }
   }
 }

@@ -18,7 +18,7 @@ class RefreshWorkflowReportingTests(unittest.TestCase):
         clear_step = workflow[clear:setup]
         self.assertIn("run: mkdir -p state/diagnostics && rm -f state/diagnostics/source-report.json", clear_step)
 
-        persist_start = workflow.index("- name: Persist provider snapshots")
+        persist_start = workflow.index("- name: Persist externally verified provider snapshots")
         upload_start = workflow.index("- name: Upload refresh report", persist_start)
         persist_step = workflow[persist_start:upload_start]
         self.assertIn("steps.build_catalogue.outcome != 'skipped'", persist_step)
@@ -36,6 +36,34 @@ class RefreshWorkflowReportingTests(unittest.TestCase):
         self.assertIn("steps.build_catalogue.outcome != 'skipped'", upload_step)
         self.assertIn("if-no-files-found: warn", upload_step)
         self.assertIn("retention-days: 30", upload_step)
+
+    def test_external_snapshot_restore_precedes_validation_and_publish_precedes_git_commit(self):
+        workflow = Path(".github/workflows/refresh.yml").read_text(encoding="utf-8")
+
+        install = workflow.index("name: Install dependencies")
+        restore = workflow.index("name: Restore externally stored provider snapshots")
+        validate = workflow.index("name: Validate restored provider state")
+        build = workflow.index("name: Build catalogue using fresh or last-good provider data")
+        persist = workflow.index("name: Persist externally verified provider snapshots")
+        artifact = workflow.index("name: Upload refresh report")
+
+        self.assertLess(install, restore)
+        self.assertLess(restore, validate)
+        self.assertLess(validate, build)
+        self.assertLess(build, persist)
+        self.assertLess(persist, artifact)
+
+        persist_step = workflow[persist:artifact]
+        self.assertIn("publish-external", persist_step)
+        self.assertIn("git -C state push origin HEAD:refs/heads/radsync-state", persist_step)
+        self.assertIn(":(exclude)diagnostics/source-report.json", persist_step)
+        self.assertIn("provider state was not advanced", persist_step)
+
+    def test_external_storage_credentials_are_environment_only(self):
+        workflow = Path(".github/workflows/refresh.yml").read_text(encoding="utf-8")
+        self.assertIn("RADSYNC_S3_BUCKET: ${{ vars.RADSYNC_S3_BUCKET }}", workflow)
+        self.assertIn("RADSYNC_S3_ACCESS_KEY_ID: ${{ secrets.RADSYNC_S3_ACCESS_KEY_ID }}", workflow)
+        self.assertIn("RADSYNC_S3_SECRET_ACCESS_KEY: ${{ secrets.RADSYNC_S3_SECRET_ACCESS_KEY }}", workflow)
 
 
 if __name__ == "__main__":
