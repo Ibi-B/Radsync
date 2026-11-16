@@ -195,21 +195,24 @@ class RetentionLayoutTests(unittest.TestCase):
         snapshot_file = self.state_dir / "sources" / "fixture.json"
         original_snapshot = snapshot_file.read_bytes()
 
-        retention.publish_external_snapshots(
-            self.state_dir, str(self.config_path), run_id="1"
-        )
-        first = self._manifest()
-        first_key = first["objectKey"]
-        first_digest = first["sha256"]
+        # Pin the archive creation timestamp so both otherwise-identical
+        # JSONL/Zstandard payloads have the same content digest.
+        with patch.object(retention.base, "_utc_now", return_value="2026-11-16T00:00:00+00:00"):
+            retention.publish_external_snapshots(
+                self.state_dir, str(self.config_path), run_id="1"
+            )
+            first = self._manifest()
+            first_key = first["objectKey"]
+            first_digest = first["sha256"]
 
-        # Republish the exact same last-good snapshot bytes, including its
-        # updatedAt metadata, so the compressed content digest is identical.
-        snapshot_file.parent.mkdir(parents=True, exist_ok=True)
-        snapshot_file.write_bytes(original_snapshot)
-        retention.publish_external_snapshots(
-            self.state_dir, str(self.config_path), run_id="2"
-        )
-        second = self._manifest()
+            # Republish the exact same last-good snapshot bytes, including its
+            # updatedAt metadata.
+            snapshot_file.parent.mkdir(parents=True, exist_ok=True)
+            snapshot_file.write_bytes(original_snapshot)
+            retention.publish_external_snapshots(
+                self.state_dir, str(self.config_path), run_id="2"
+            )
+            second = self._manifest()
         self.assertEqual(first_digest, second["sha256"])
         self.assertNotEqual(first_key, second["objectKey"])
         self.assertIn(first_key, self.client.objects)
