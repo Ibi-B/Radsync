@@ -91,9 +91,9 @@ class PlaylistFormatTests(unittest.TestCase):
 class RepositoryPlaylistRefreshTests(unittest.IsolatedAsyncioTestCase):
     async def test_scan_reports_counts_and_tolerates_one_missing_file(self):
         playlist = (
-            '#EXTM3U\\n'
-            '#EXTINF:-1 tvg-id="station.one",Example Radio\\n'
-            'https://radio.example/live\\n'
+            '#EXTM3U\n'
+            '#EXTINF:-1 tvg-id="station.one",Example Radio\n'
+            'https://radio.example/live\n'
         )
         tree = {"tree": [
             {"path": f"stations/{name}.m3u", "type": "blob"}
