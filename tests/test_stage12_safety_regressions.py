@@ -198,7 +198,7 @@ class PartialPlaylistPreservationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([], records)
         self.assertEqual(1, report["retrieved"])
         self.assertEqual(1, report["parsedSuccessfully"])
-        self.assertEqual(0, report["parsedWithoutUsableRecords"])
+        self.assertEqual(1, report["parsedWithoutUsableRecords"])
         self.assertEqual(0, report["validEmpty"])
         self.assertEqual(0, report["unparseable"])
         self.assertEqual(1.0, report["coverageRatio"])
