@@ -12,6 +12,7 @@ import json
 import os
 import shutil
 import tempfile
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -136,18 +137,18 @@ def _cleanup_uncommitted_objects(client, bucket, keys):
             pass
 
 
-def _archive_key(prefix, source, descriptor, timestamp):
+def _archive_key(prefix, source, descriptor, timestamp, publication_id):
     digest = descriptor["sha256"]
-    return f"{prefix}/archive/{source}/{timestamp}-{digest}.jsonl.zst"
+    return f"{prefix}/archive/{source}/{timestamp}-{publication_id}-{digest}.jsonl.zst"
 
 
-def _previous_key(prefix, source, descriptor):
+def _previous_key(prefix, source, descriptor, publication_id):
     digest = descriptor["sha256"]
-    return f"{prefix}/previous/{source}/sha256/{digest}/previous.jsonl.zst"
+    return f"{prefix}/previous/{source}/{publication_id}/sha256/{digest}/previous.jsonl.zst"
 
 
-def _current_key(prefix, source, digest):
-    return f"{prefix}/current/{source}/sha256/{digest}/active.jsonl.zst"
+def _current_key(prefix, source, digest, publication_id):
+    return f"{prefix}/current/{source}/{publication_id}/sha256/{digest}/active.jsonl.zst"
 
 
 def _copy_descriptor_to_prefix(client, bucket, prefix, source, descriptor, role,
@@ -204,6 +205,9 @@ def publish_external_snapshots(state_dir, config_path="config/sources.json",
 
     run_id = base._safe_source_id(str(run_id or os.environ.get("GITHUB_RUN_ID") or "manual"))
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
+    # Unique publication namespace prevents a failed concurrent run from
+    # deleting a content-identical object already referenced by another run.
+    publication_id = f"{run_id}-{uuid.uuid4().hex[:12]}"
     created_objects = []
     new_manifests = []
     report_manifest = None
@@ -222,7 +226,7 @@ def publish_external_snapshots(state_dir, config_path="config/sources.json",
                 candidate_archive = Path(temporary) / f"{source}-candidate.jsonl.zst"
                 candidate_counts = base._create_archive(snapshot_file, candidate_archive, source, bounds)
                 candidate_digest = base._sha256_file(candidate_archive)
-                current_key = _current_key(prefix, source, candidate_digest)
+                current_key = _current_key(prefix, source, candidate_digest, publication_id)
                 candidate_db = Path(temporary) / f"{source}-candidate.sqlite3"
                 candidate_verified = base._stage_archive(
                     candidate_archive, candidate_db, source,
@@ -271,7 +275,7 @@ def publish_external_snapshots(state_dir, config_path="config/sources.json",
                     retained_descriptor = dict(retained_source["descriptor"])
                     retained_descriptor["_localArchive"] = str(retained_source["archive"])
                     if current_verified:
-                        previous_key = _previous_key(prefix, source, retained_descriptor)
+                        previous_key = _previous_key(prefix, source, retained_descriptor, publication_id)
                         new_previous = _copy_descriptor_to_prefix(
                             client, bucket, prefix, source, retained_descriptor,
                             "previous", previous_key, temporary, created_objects,
@@ -287,7 +291,7 @@ def publish_external_snapshots(state_dir, config_path="config/sources.json",
                     previous_descriptor = dict(previous_verified["descriptor"])
                     previous_descriptor["_localArchive"] = str(previous_verified["archive"])
                     archived_previous_key = _archive_key(
-                        prefix, source, previous_descriptor, stamp
+                        prefix, source, previous_descriptor, stamp, publication_id
                     )
                     _copy_descriptor_to_prefix(
                         client, bucket, prefix, source, previous_descriptor,
@@ -347,7 +351,7 @@ def publish_external_snapshots(state_dir, config_path="config/sources.json",
                 base._compress_report(report_path, Path(temporary) / "refresh-report.json.zst")
                 compressed = Path(temporary) / "refresh-report.json.zst"
                 digest = base._sha256_file(compressed)
-                key = f"{diagnostics_prefix}/refresh-report-{run_id}-{digest}.json.zst"
+                key = f"{diagnostics_prefix}/refresh-report-{publication_id}-{digest}.json.zst"
                 size, _ = _upload_verified_diagnostic(client, bucket, key, compressed, digest, temporary, created_objects)
                 report_manifest = {
                     "schemaVersion": base.MANIFEST_SCHEMA_VERSION,
@@ -364,7 +368,7 @@ def publish_external_snapshots(state_dir, config_path="config/sources.json",
                 base._compress_report(ambiguity_path, Path(temporary) / "identity-ambiguity.json.zst")
                 compressed = Path(temporary) / "identity-ambiguity.json.zst"
                 digest = base._sha256_file(compressed)
-                key = f"{diagnostics_prefix}/identity-ambiguity-{run_id}-{digest}.json.zst"
+                key = f"{diagnostics_prefix}/identity-ambiguity-{publication_id}-{digest}.json.zst"
                 size, _ = _upload_verified_diagnostic(client, bucket, key, compressed, digest, temporary, created_objects)
                 ambiguity_manifest = {
                     "schemaVersion": base.MANIFEST_SCHEMA_VERSION,
