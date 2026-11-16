@@ -190,20 +190,21 @@ class PartialPlaylistPreservationTests(unittest.IsolatedAsyncioTestCase):
                 return FakeResponse(body="#EXTM3U\n")
 
         report = {}
-        with self.assertRaisesRegex(ValueError, "parse coverage collapsed"):
-            await fetch_repository_playlists(
-                FakeSession(), "https://api.github.example/tree",
-                "https://raw.example/org/repo/main", report=report,
-            )
+        records = await fetch_repository_playlists(
+            FakeSession(), "https://api.github.example/tree",
+            "https://raw.example/org/repo/main", report=report,
+        )
 
+        self.assertEqual([], records)
         self.assertEqual(1, report["retrieved"])
-        self.assertEqual(0, report["parsedSuccessfully"])
+        self.assertEqual(1, report["parsedSuccessfully"])
+        self.assertEqual(0, report["parsedWithoutUsableRecords"])
         self.assertEqual(0, report["validEmpty"])
-        self.assertEqual(1, report["unparseable"])
+        self.assertEqual(0, report["unparseable"])
         self.assertEqual(1.0, report["coverageRatio"])
-        self.assertEqual(0.0, report["parseCoverageRatio"])
+        self.assertEqual(1.0, report["parseCoverageRatio"])
         self.assertEqual(0.0, report["recordProductionCoverageRatio"])
-        self.assertEqual("unparseable", report["skippedPlaylists"][0]["classification"])
+        self.assertEqual("no-usable-records", report["skippedPlaylists"][0]["classification"])
 
     async def test_playlist_with_malformed_entry_is_not_classified_valid_empty(self):
         tree = {"tree": [{"path": "bad.m3u", "type": "blob"}]}
@@ -236,6 +237,10 @@ class PartialPlaylistPreservationTests(unittest.IsolatedAsyncioTestCase):
                 "https://raw.example/org/repo/main", report=report,
             )
 
+        self.assertEqual(1, report["parseFailed"])
         self.assertEqual(1, report["unparseable"])
         self.assertEqual(0, report["validEmpty"])
-        self.assertEqual("unparseable", report["skippedPlaylists"][0]["classification"])
+        self.assertEqual(1.0, report["coverageRatio"])
+        self.assertEqual(0.0, report["parseCoverageRatio"])
+        self.assertEqual(0.0, report["recordProductionCoverageRatio"])
+        self.assertEqual("parse-failed", report["skippedPlaylists"][0]["classification"])
