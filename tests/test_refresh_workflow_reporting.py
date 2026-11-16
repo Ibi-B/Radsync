@@ -16,7 +16,7 @@ class RefreshWorkflowReportingTests(unittest.TestCase):
         self.assertLess(clear, regression_tests)
 
         clear_step = workflow[clear:setup]
-        self.assertIn("run: rm -f state/diagnostics/source-report.json", clear_step)
+        self.assertIn("run: mkdir -p state/diagnostics && rm -f state/diagnostics/source-report.json", clear_step)
 
     def test_refresh_report_upload_requires_build_attempt_and_runs_after_build_failure(self):
         workflow = Path(".github/workflows/refresh.yml").read_text(encoding="utf-8")
