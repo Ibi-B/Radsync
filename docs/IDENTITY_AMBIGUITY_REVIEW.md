@@ -35,10 +35,21 @@ This diagnostic predates the source-preservation PR. It contains no provider sta
 - J-Club Powerplay HipHop and GHERLA have cross-provider observations of the same exact URL; this is endpoint evidence, not sufficient station-identity proof.
 - No group has usable provider station IDs or playlist-entry provenance in this historical diagnostic. No canonical merge should be authorized from this file alone.
 
+## Catalog identity policy
+
+An unresolved identity collision is **not a reason to block the catalogue build or discard a record**.
+
+- Merge source observations into alternate streams only when reliable provider identity supports that relationship. A matching station name or stream URL alone is not proof of station identity.
+- When provider IDs or playlist-entry provenance distinguish aggregates, use that stable evidence to generate separate deterministic station IDs.
+- When two aggregates remain completely indistinguishable, retain both with unique occurrence-qualified IDs and emit a diagnostic. This preserves the source record count without claiming the two records are the same station.
+- The occurrence suffix is a deterministic fallback for otherwise identical rows; without an upstream ID or entry key, no system can reliably tell which physical station an identical row represents after the upstream order changes. The fallback preserves both rows rather than silently merging or deleting either one.
+
+The intended trade-off is explicit: **a possible duplicate is safer than losing a potentially different station**. A later evidence-based reconciliation can merge records when provider identity proves they are the same canonical station.
+
 ## Required next evidence
 
 After PR #10's provenance changes are deployed to the state-refresh path, capture a new diagnostic containing provider IDs, playlist repository/path, entry index, raw EXTINF, original title/URL, and source timestamps. Compare each repeated observation by its actual playlist file and entry index. Only then classify an observation as an exact duplicate playlist entry, a distinct stream variant, or an unresolved station candidate.
 
 ## Reconciliation disposition
 
-**Do not implement automatic station merges for any of these 12 groups yet.** Endpoint-level duplicate observations can be consolidated only when their source-record provenance is retained. Distinct URLs/formats remain alternatives. Groups with insufficient identity evidence stay separate and continue to be blocked by the existing fail-closed canonical collision guard where applicable.
+**Do not implement automatic station merges for any of these 12 groups yet.** Keep each unresolved aggregate as a separate catalogue station with a unique ID. Preserve all endpoint alternatives and source records. The canonical collision guard now assigns occurrence-qualified IDs and records a diagnostic instead of failing the build; it does not merge or delete indistinguishable candidates.
