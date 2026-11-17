@@ -29,13 +29,5 @@
       "minStationCount": 8,
       "minStreamCount": 8
     }
-  },
-  "rotationCleanup": [
-    {
-      "deleteKey": "radsync/state/current/bbc-radio/44194778513-da415bf054d4/sha256/effd6e5caa16bf1d13cef98c0dbaedd3e6d1c406fa4c9aab4c07ffc892c73c4d/active.jsonl.zst",
-      "replacementKey": "radsync/state/previous/bbc-radio/44198761794-5dd0107206a9/sha256/effd6e5caa16bf1d13cef98c0dbaedd3e6d1c406fa4c9aab4c07ffc892c73c4d/previous.jsonl.zst",
-      "replacementRole": "previous",
-      "sha256": "effd6e5caa16bf1d13cef98c0dbaedd3e6d1c406fa4c9aab4c07ffc892c73c4d"
-    }
-  ]
+  }
 }

@@ -31,13 +31,5 @@
       "minStationCount": 30000,
       "minStreamCount": 30000
     }
-  },
-  "rotationCleanup": [
-    {
-      "deleteKey": "radsync/state/current/alon-drilich/44194778513-da415bf054d4/sha256/69828b18f55c7ee793c52192e3a5005d95895c8f0fcccf815446f28ee11c8533/active.jsonl.zst",
-      "replacementKey": "radsync/state/previous/alon-drilich/44198761794-5dd0107206a9/sha256/69828b18f55c7ee793c52192e3a5005d95895c8f0fcccf815446f28ee11c8533/previous.jsonl.zst",
-      "replacementRole": "previous",
-      "sha256": "69828b18f55c7ee793c52192e3a5005d95895c8f0fcccf815446f28ee11c8533"
-    }
-  ]
+  }
 }

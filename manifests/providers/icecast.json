@@ -29,13 +29,5 @@
       "minStationCount": 10000,
       "minStreamCount": 10000
     }
-  },
-  "rotationCleanup": [
-    {
-      "deleteKey": "radsync/state/current/icecast/44194778513-da415bf054d4/sha256/ab26c98b2f447f38157787d8f4cd8e1b20d5b6092732ef720ef685c5abea67f3/active.jsonl.zst",
-      "replacementKey": "radsync/state/previous/icecast/44198761794-5dd0107206a9/sha256/ab26c98b2f447f38157787d8f4cd8e1b20d5b6092732ef720ef685c5abea67f3/previous.jsonl.zst",
-      "replacementRole": "previous",
-      "sha256": "ab26c98b2f447f38157787d8f4cd8e1b20d5b6092732ef720ef685c5abea67f3"
-    }
-  ]
+  }
 }

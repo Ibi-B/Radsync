@@ -29,13 +29,5 @@
       "minStationCount": 40,
       "minStreamCount": 150
     }
-  },
-  "rotationCleanup": [
-    {
-      "deleteKey": "radsync/state/current/somafm/44194778513-da415bf054d4/sha256/318a671b70abdf7a109ef01d4d767010ee4010ccc6d412caf1b8ebeb9691e369/active.jsonl.zst",
-      "replacementKey": "radsync/state/previous/somafm/44198761794-5dd0107206a9/sha256/318a671b70abdf7a109ef01d4d767010ee4010ccc6d412caf1b8ebeb9691e369/previous.jsonl.zst",
-      "replacementRole": "previous",
-      "sha256": "318a671b70abdf7a109ef01d4d767010ee4010ccc6d412caf1b8ebeb9691e369"
-    }
-  ]
+  }
 }
