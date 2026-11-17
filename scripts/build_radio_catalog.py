@@ -356,35 +356,36 @@ def stations_compatible(existing, incoming):
 
 
 def find_station_match(candidates, incoming):
+    """Match only when both aggregates share a provider-qualified station ID.
+
+    Normalized name and compatible location/language narrow the candidate set;
+    they are not positive identity evidence. Stream URLs, codecs, and bitrates
+    describe stream variants, not station identity. If no exact provider ID is
+    shared, the incoming aggregate must remain separate.
+    """
     compatible = [station for station in candidates if stations_compatible(station, incoming)]
     if not compatible:
         return None
 
-    # Prefer an exact provider identity when one is available. A source may
-    # legitimately publish several formats/URLs for the same station under
-    # separate provider records; treating every same-name candidate as
-    # ambiguous prevents those variants from being reconciled. Do not use a
-    # stream URL as identity: URLs are variants, not station identifiers.
     incoming_ids = {
         (source, source_id)
         for source, ids in _source_ids_for_station(incoming).items()
         for source_id in ids
     }
-    if incoming_ids:
-        exact_matches = [
-            station for station in compatible
-            if incoming_ids.intersection(
-                (source, source_id)
-                for source, ids in _source_ids_for_station(station).items()
-                for source_id in ids
-            )
-        ]
-        if len(exact_matches) == 1:
-            return exact_matches[0]
-        if len(exact_matches) > 1:
-            return None
+    if not incoming_ids:
+        return None
 
-    return compatible[0] if len(compatible) == 1 else None
+    exact_matches = [
+        station for station in compatible
+        if incoming_ids.intersection(
+            (source, source_id)
+            for source, ids in _source_ids_for_station(station).items()
+            for source_id in ids
+        )
+    ]
+    # A shared ID that appears in more than one candidate is itself ambiguous.
+    # Do not choose one based on ordering, URL, codec, bitrate, or metadata.
+    return exact_matches[0] if len(exact_matches) == 1 else None
 
 
 def _canonical_identity_base(station):
