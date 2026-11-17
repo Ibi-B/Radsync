@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "layoutVersion": 2,
+  "format": "radsync-jsonl-zstd-v1",
+  "source": "alon-drilich",
+  "objectKey": "radsync/state/current/alon-drilich/44194778513-da415bf054d4/sha256/69828b18f55c7ee793c52192e3a5005d95895c8f0fcccf815446f28ee11c8533/active.jsonl.zst",
+  "sha256": "69828b18f55c7ee793c52192e3a5005d95895c8f0fcccf815446f28ee11c8533",
+  "compressedBytes": 3076194,
+  "stationCount": 33633,
+  "streamCount": 33633,
+  "snapshotUpdatedAt": "2026-11-17T22:57:31.292261+00:00",
+  "anomalyBounds": {
+    "minStationCount": 30000,
+    "maxStationDropRatio": 0.1,
+    "minStreamCount": 30000,
+    "maxStreamDropRatio": 0.15,
+    "minRecordProductionCoverage": 0.8
+  },
+  "verifiedAt": "2026-11-17T22:59:26.572867+00:00"
+}

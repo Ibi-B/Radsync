@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "layoutVersion": 2,
+  "format": "radsync-jsonl-zstd-v1",
+  "source": "iptv-org-streams",
+  "objectKey": "radsync/state/current/iptv-org-streams/44194778513-da415bf054d4/sha256/0dcc4611247b5e2672a0fab5106054344c822dc95702861dbcf3e92eb3edc88a/active.jsonl.zst",
+  "sha256": "0dcc4611247b5e2672a0fab5106054344c822dc95702861dbcf3e92eb3edc88a",
+  "compressedBytes": 1095246,
+  "stationCount": 18747,
+  "streamCount": 18747,
+  "snapshotUpdatedAt": "2026-11-17T22:56:46.059200+00:00",
+  "anomalyBounds": {
+    "minStationCount": 15000,
+    "maxStationDropRatio": 0.1,
+    "minStreamCount": 15000,
+    "maxStreamDropRatio": 0.15
+  },
+  "verifiedAt": "2026-11-17T22:59:48.325400+00:00"
+}

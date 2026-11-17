@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "layoutVersion": 2,
+  "format": "radsync-jsonl-zstd-v1",
+  "source": "iprd",
+  "objectKey": "radsync/state/current/iprd/44194778513-da415bf054d4/sha256/910466cb950a93e5f854e81a67749babfb5db2012e9bfb11a06b0f19a381a38c/active.jsonl.zst",
+  "sha256": "910466cb950a93e5f854e81a67749babfb5db2012e9bfb11a06b0f19a381a38c",
+  "compressedBytes": 1540913,
+  "stationCount": 40011,
+  "streamCount": 40011,
+  "snapshotUpdatedAt": "2026-11-16T09:21:19.452538+00:00",
+  "anomalyBounds": {
+    "minStationCount": 35000,
+    "maxStationDropRatio": 0.1,
+    "minStreamCount": 35000,
+    "maxStreamDropRatio": 0.15,
+    "minRecordProductionCoverage": 0.8
+  },
+  "verifiedAt": "2026-11-17T22:59:41.823099+00:00"
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "layoutVersion": 2,
+  "format": "radsync-jsonl-zstd-v1",
+  "source": "somafm",
+  "objectKey": "radsync/state/current/somafm/44194778513-da415bf054d4/sha256/318a671b70abdf7a109ef01d4d767010ee4010ccc6d412caf1b8ebeb9691e369/active.jsonl.zst",
+  "sha256": "318a671b70abdf7a109ef01d4d767010ee4010ccc6d412caf1b8ebeb9691e369",
+  "compressedBytes": 8209,
+  "stationCount": 51,
+  "streamCount": 204,
+  "snapshotUpdatedAt": "2026-11-17T22:56:48.868705+00:00",
+  "anomalyBounds": {
+    "minStationCount": 40,
+    "maxStationDropRatio": 0.1,
+    "minStreamCount": 150,
+    "maxStreamDropRatio": 0.15
+  },
+  "verifiedAt": "2026-11-17T22:59:52.625355+00:00"
+}
