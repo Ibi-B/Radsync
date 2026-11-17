@@ -3,17 +3,39 @@
   "layoutVersion": 2,
   "format": "radsync-jsonl-zstd-v1",
   "source": "airwavedb",
-  "objectKey": "radsync/state/current/airwavedb/44194778513-da415bf054d4/sha256/e6a9ed590c8f18567bb9ca7217f4e2243c8626f284bfefe24c2c88a582d70283/active.jsonl.zst",
-  "sha256": "e6a9ed590c8f18567bb9ca7217f4e2243c8626f284bfefe24c2c88a582d70283",
-  "compressedBytes": 6169413,
+  "objectKey": "radsync/state/current/airwavedb/44198761794-5dd0107206a9/sha256/19ce3d7d75a39f01a87253c71952ccada499d3276dba06d61ec79c3a14025e58/active.jsonl.zst",
+  "sha256": "19ce3d7d75a39f01a87253c71952ccada499d3276dba06d61ec79c3a14025e58",
+  "compressedBytes": 6186533,
   "stationCount": 55651,
   "streamCount": 58833,
-  "snapshotUpdatedAt": "2026-11-17T22:56:59.424550+00:00",
+  "snapshotUpdatedAt": "2026-11-17T23:23:30.048531+00:00",
   "anomalyBounds": {
     "minStationCount": 50000,
     "maxStationDropRatio": 0.1,
     "minStreamCount": 52000,
     "maxStreamDropRatio": 0.15
   },
-  "verifiedAt": "2026-11-17T22:59:14.153799+00:00"
+  "verifiedAt": "2026-11-17T23:26:34.782133+00:00",
+  "previous": {
+    "objectKey": "radsync/state/previous/airwavedb/44198761794-5dd0107206a9/sha256/e6a9ed590c8f18567bb9ca7217f4e2243c8626f284bfefe24c2c88a582d70283/previous.jsonl.zst",
+    "sha256": "e6a9ed590c8f18567bb9ca7217f4e2243c8626f284bfefe24c2c88a582d70283",
+    "compressedBytes": 6169413,
+    "stationCount": 55651,
+    "streamCount": 58833,
+    "snapshotUpdatedAt": "2026-11-17T22:56:59.424550+00:00",
+    "anomalyBounds": {
+      "maxStationDropRatio": 0.1,
+      "maxStreamDropRatio": 0.15,
+      "minStationCount": 50000,
+      "minStreamCount": 52000
+    }
+  },
+  "rotationCleanup": [
+    {
+      "deleteKey": "radsync/state/current/airwavedb/44194778513-da415bf054d4/sha256/e6a9ed590c8f18567bb9ca7217f4e2243c8626f284bfefe24c2c88a582d70283/active.jsonl.zst",
+      "replacementKey": "radsync/state/previous/airwavedb/44198761794-5dd0107206a9/sha256/e6a9ed590c8f18567bb9ca7217f4e2243c8626f284bfefe24c2c88a582d70283/previous.jsonl.zst",
+      "replacementRole": "previous",
+      "sha256": "e6a9ed590c8f18567bb9ca7217f4e2243c8626f284bfefe24c2c88a582d70283"
+    }
+  ]
 }

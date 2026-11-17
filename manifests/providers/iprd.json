@@ -3,9 +3,9 @@
   "layoutVersion": 2,
   "format": "radsync-jsonl-zstd-v1",
   "source": "iprd",
-  "objectKey": "radsync/state/current/iprd/44194778513-da415bf054d4/sha256/910466cb950a93e5f854e81a67749babfb5db2012e9bfb11a06b0f19a381a38c/active.jsonl.zst",
-  "sha256": "910466cb950a93e5f854e81a67749babfb5db2012e9bfb11a06b0f19a381a38c",
-  "compressedBytes": 1540913,
+  "objectKey": "radsync/state/current/iprd/44198761794-5dd0107206a9/sha256/1316b90f391915f9f0b9fe1a528b95c53d5eba43c5e3985fba37306070704b1e/active.jsonl.zst",
+  "sha256": "1316b90f391915f9f0b9fe1a528b95c53d5eba43c5e3985fba37306070704b1e",
+  "compressedBytes": 1550500,
   "stationCount": 40011,
   "streamCount": 40011,
   "snapshotUpdatedAt": "2026-11-16T09:21:19.452538+00:00",
@@ -16,5 +16,28 @@
     "maxStreamDropRatio": 0.15,
     "minRecordProductionCoverage": 0.8
   },
-  "verifiedAt": "2026-11-17T22:59:41.823099+00:00"
+  "verifiedAt": "2026-11-17T23:27:34.922566+00:00",
+  "previous": {
+    "objectKey": "radsync/state/previous/iprd/44198761794-5dd0107206a9/sha256/910466cb950a93e5f854e81a67749babfb5db2012e9bfb11a06b0f19a381a38c/previous.jsonl.zst",
+    "sha256": "910466cb950a93e5f854e81a67749babfb5db2012e9bfb11a06b0f19a381a38c",
+    "compressedBytes": 1540913,
+    "stationCount": 40011,
+    "streamCount": 40011,
+    "snapshotUpdatedAt": "2026-11-16T09:21:19.452538+00:00",
+    "anomalyBounds": {
+      "maxStationDropRatio": 0.1,
+      "maxStreamDropRatio": 0.15,
+      "minRecordProductionCoverage": 0.8,
+      "minStationCount": 35000,
+      "minStreamCount": 35000
+    }
+  },
+  "rotationCleanup": [
+    {
+      "deleteKey": "radsync/state/current/iprd/44194778513-da415bf054d4/sha256/910466cb950a93e5f854e81a67749babfb5db2012e9bfb11a06b0f19a381a38c/active.jsonl.zst",
+      "replacementKey": "radsync/state/previous/iprd/44198761794-5dd0107206a9/sha256/910466cb950a93e5f854e81a67749babfb5db2012e9bfb11a06b0f19a381a38c/previous.jsonl.zst",
+      "replacementRole": "previous",
+      "sha256": "910466cb950a93e5f854e81a67749babfb5db2012e9bfb11a06b0f19a381a38c"
+    }
+  ]
 }

@@ -3,17 +3,39 @@
   "layoutVersion": 2,
   "format": "radsync-jsonl-zstd-v1",
   "source": "bbc-radio",
-  "objectKey": "radsync/state/current/bbc-radio/44194778513-da415bf054d4/sha256/effd6e5caa16bf1d13cef98c0dbaedd3e6d1c406fa4c9aab4c07ffc892c73c4d/active.jsonl.zst",
-  "sha256": "effd6e5caa16bf1d13cef98c0dbaedd3e6d1c406fa4c9aab4c07ffc892c73c4d",
-  "compressedBytes": 1405,
+  "objectKey": "radsync/state/current/bbc-radio/44198761794-5dd0107206a9/sha256/a529ff535d4e6aed88d6a4745628917d43edf6d6e65598b856cfb74557733290/active.jsonl.zst",
+  "sha256": "a529ff535d4e6aed88d6a4745628917d43edf6d6e65598b856cfb74557733290",
+  "compressedBytes": 1406,
   "stationCount": 10,
   "streamCount": 10,
-  "snapshotUpdatedAt": "2026-11-17T22:56:47.078283+00:00",
+  "snapshotUpdatedAt": "2026-11-17T23:23:07.028154+00:00",
   "anomalyBounds": {
     "minStationCount": 8,
     "maxStationDropRatio": 0.1,
     "minStreamCount": 8,
     "maxStreamDropRatio": 0.15
   },
-  "verifiedAt": "2026-11-17T22:59:28.415311+00:00"
+  "verifiedAt": "2026-11-17T23:27:04.569007+00:00",
+  "previous": {
+    "objectKey": "radsync/state/previous/bbc-radio/44198761794-5dd0107206a9/sha256/effd6e5caa16bf1d13cef98c0dbaedd3e6d1c406fa4c9aab4c07ffc892c73c4d/previous.jsonl.zst",
+    "sha256": "effd6e5caa16bf1d13cef98c0dbaedd3e6d1c406fa4c9aab4c07ffc892c73c4d",
+    "compressedBytes": 1405,
+    "stationCount": 10,
+    "streamCount": 10,
+    "snapshotUpdatedAt": "2026-11-17T22:56:47.078283+00:00",
+    "anomalyBounds": {
+      "maxStationDropRatio": 0.1,
+      "maxStreamDropRatio": 0.15,
+      "minStationCount": 8,
+      "minStreamCount": 8
+    }
+  },
+  "rotationCleanup": [
+    {
+      "deleteKey": "radsync/state/current/bbc-radio/44194778513-da415bf054d4/sha256/effd6e5caa16bf1d13cef98c0dbaedd3e6d1c406fa4c9aab4c07ffc892c73c4d/active.jsonl.zst",
+      "replacementKey": "radsync/state/previous/bbc-radio/44198761794-5dd0107206a9/sha256/effd6e5caa16bf1d13cef98c0dbaedd3e6d1c406fa4c9aab4c07ffc892c73c4d/previous.jsonl.zst",
+      "replacementRole": "previous",
+      "sha256": "effd6e5caa16bf1d13cef98c0dbaedd3e6d1c406fa4c9aab4c07ffc892c73c4d"
+    }
+  ]
 }

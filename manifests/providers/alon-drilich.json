@@ -3,12 +3,12 @@
   "layoutVersion": 2,
   "format": "radsync-jsonl-zstd-v1",
   "source": "alon-drilich",
-  "objectKey": "radsync/state/current/alon-drilich/44194778513-da415bf054d4/sha256/69828b18f55c7ee793c52192e3a5005d95895c8f0fcccf815446f28ee11c8533/active.jsonl.zst",
-  "sha256": "69828b18f55c7ee793c52192e3a5005d95895c8f0fcccf815446f28ee11c8533",
-  "compressedBytes": 3076194,
+  "objectKey": "radsync/state/current/alon-drilich/44198761794-5dd0107206a9/sha256/bc98763601973380f4adc18743e0a5371813f7505ab7ae37e521b7ec2372951e/active.jsonl.zst",
+  "sha256": "bc98763601973380f4adc18743e0a5371813f7505ab7ae37e521b7ec2372951e",
+  "compressedBytes": 3084032,
   "stationCount": 33633,
   "streamCount": 33633,
-  "snapshotUpdatedAt": "2026-11-17T22:57:31.292261+00:00",
+  "snapshotUpdatedAt": "2026-11-17T23:23:58.792818+00:00",
   "anomalyBounds": {
     "minStationCount": 30000,
     "maxStationDropRatio": 0.1,
@@ -16,5 +16,28 @@
     "maxStreamDropRatio": 0.15,
     "minRecordProductionCoverage": 0.8
   },
-  "verifiedAt": "2026-11-17T22:59:26.572867+00:00"
+  "verifiedAt": "2026-11-17T23:27:02.109650+00:00",
+  "previous": {
+    "objectKey": "radsync/state/previous/alon-drilich/44198761794-5dd0107206a9/sha256/69828b18f55c7ee793c52192e3a5005d95895c8f0fcccf815446f28ee11c8533/previous.jsonl.zst",
+    "sha256": "69828b18f55c7ee793c52192e3a5005d95895c8f0fcccf815446f28ee11c8533",
+    "compressedBytes": 3076194,
+    "stationCount": 33633,
+    "streamCount": 33633,
+    "snapshotUpdatedAt": "2026-11-17T22:57:31.292261+00:00",
+    "anomalyBounds": {
+      "maxStationDropRatio": 0.1,
+      "maxStreamDropRatio": 0.15,
+      "minRecordProductionCoverage": 0.8,
+      "minStationCount": 30000,
+      "minStreamCount": 30000
+    }
+  },
+  "rotationCleanup": [
+    {
+      "deleteKey": "radsync/state/current/alon-drilich/44194778513-da415bf054d4/sha256/69828b18f55c7ee793c52192e3a5005d95895c8f0fcccf815446f28ee11c8533/active.jsonl.zst",
+      "replacementKey": "radsync/state/previous/alon-drilich/44198761794-5dd0107206a9/sha256/69828b18f55c7ee793c52192e3a5005d95895c8f0fcccf815446f28ee11c8533/previous.jsonl.zst",
+      "replacementRole": "previous",
+      "sha256": "69828b18f55c7ee793c52192e3a5005d95895c8f0fcccf815446f28ee11c8533"
+    }
+  ]
 }
