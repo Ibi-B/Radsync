@@ -46,6 +46,14 @@ An unresolved identity collision is **not a reason to block the catalogue build 
 
 The intended trade-off is explicit: **a possible duplicate is safer than losing a potentially different station**. A later evidence-based reconciliation can merge records when provider identity proves they are the same canonical station.
 
+## Automatic matching gate
+
+The catalogue matcher now requires an exact intersection of provider-qualified station identity keys, represented as `(provider, provider station ID)`, before two aggregates can be merged. A matching normalized name and compatible country/language are candidate filters only; they cannot establish identity on their own.
+
+A shared stream URL is not station identity. Neither are codec or bitrate: these are stream-level attributes. When the same provider station ID is present on multiple records, the records can be reconciled into one station while retaining each distinct URL, codec, and bitrate as an alternate stream. When IDs are absent or differ, the records remain separate—even when their names, metadata, or stream URLs match. Cross-provider merging therefore requires an explicit trusted identity mapping; matching names or endpoints is not a substitute.
+
+If an incoming record's provider ID matches more than one candidate, matching remains unresolved and the record is preserved separately rather than selecting a candidate by order or metadata.
+
 ## Required next evidence
 
 After PR #10's provenance changes are deployed to the state-refresh path, capture a new diagnostic containing provider IDs, playlist repository/path, entry index, raw EXTINF, original title/URL, and source timestamps. Compare each repeated observation by its actual playlist file and entry index. Only then classify an observation as an exact duplicate playlist entry, a distinct stream variant, or an unresolved station candidate.
