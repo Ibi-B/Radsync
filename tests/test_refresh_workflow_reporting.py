@@ -25,6 +25,19 @@ class RefreshWorkflowReportingTests(unittest.TestCase):
         self.assertIn("if [ ! -f state/diagnostics/source-report.json ]; then", persist_step)
         self.assertIn("preserving the previous provider state", persist_step)
 
+    def test_initial_external_migration_skips_manifest_staging_when_directory_is_absent(self):
+        workflow = Path(".github/workflows/refresh.yml").read_text(encoding="utf-8")
+        start = workflow.index("name: Restore externally stored provider snapshots")
+        end = workflow.index("name: Validate restored provider state", start)
+        restore_step = workflow[start:end]
+
+        self.assertIn("if [ -d state/manifests/providers ]; then", restore_step)
+        self.assertIn("git -C state add --all -- manifests/providers", restore_step)
+        self.assertLess(
+            restore_step.index("fi\n          python -m sources.state_cli restore-external"),
+            len(restore_step),
+        )
+
     def test_refresh_report_upload_requires_build_attempt_and_runs_after_build_failure(self):
         workflow = Path(".github/workflows/refresh.yml").read_text(encoding="utf-8")
         start = workflow.index("- name: Upload refresh report")

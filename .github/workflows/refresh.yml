@@ -62,10 +62,14 @@ jobs:
           python -m sources.state_cli finalize-external --state-dir state --manifest-pushed
           git -C state config user.name "github-actions[bot]"
           git -C state config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C state add --all -- manifests/providers
-          if ! git -C state diff --cached --quiet; then
-            git -C state commit -m "Finalize prior Radsync snapshot rotation"
-            git -C state push origin HEAD:refs/heads/radsync-state
+          # On the first external migration there is no manifest directory yet.
+          # Only stage/push rotation changes when a prior manifest directory exists.
+          if [ -d state/manifests/providers ]; then
+            git -C state add --all -- manifests/providers
+            if ! git -C state diff --cached --quiet; then
+              git -C state commit -m "Finalize prior Radsync snapshot rotation"
+              git -C state push origin HEAD:refs/heads/radsync-state
+            fi
           fi
           python -m sources.state_cli restore-external --state-dir state --config config/sources.json
 
