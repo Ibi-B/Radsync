@@ -11,7 +11,7 @@ from scripts.validate_catalog import validate_catalog
 
 
 class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
-    async def test_offline_build_publishes_grouped_sources_and_ranked_default(self):
+    async def test_offline_build_preserves_unmatched_provider_stations(self):
         config = {
             "radio_browser": {"enabled": True, "url": "https://fixture.invalid/stations", "priority": 90},
             "airwavedb": {"enabled": True, "stationsUrl": "https://fixture.invalid/stations", "streamsUrl": "https://fixture.invalid/streams", "priority": 85},
@@ -64,19 +64,25 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 pointer = json.loads(Path("output/current/master-index.json").read_text(encoding="utf-8"))
                 master = json.loads((Path("output") / pointer["masterIndex"]).read_text(encoding="utf-8"))
                 payload = json.loads((Path("output") / f"v{pointer['version']}" / master["stationsUrl"]).read_text(encoding="utf-8"))
-                self.assertEqual(1, len(payload["stations"]))
-                station = payload["stations"][0]
-                self.assertEqual(2, len(station["streams"]))
-                self.assertEqual("airwavedb", station["defaultSource"])
-                self.assertEqual({"airwavedb", "radio-browser"}, set(station["sources"]))
-                self.assertEqual({"airwavedb", "radio-browser"}, {group["source"] for group in station["sourceGroups"]})
+                self.assertEqual(2, len(payload["stations"]))
+                stations_by_source = {
+                    station["defaultSource"]: station for station in payload["stations"]
+                }
+                self.assertEqual({"airwavedb", "radio-browser"}, set(stations_by_source))
+                for source, station in stations_by_source.items():
+                    self.assertEqual(1, len(station["streams"]))
+                    self.assertEqual({source}, set(station["sources"]))
+                    self.assertEqual(
+                        {source},
+                        {group["source"] for group in station["sourceGroups"]},
+                    )
 
-                # Reporting-only provenance markers must stay out of the app-facing contract.
-                for field in (
-                    "_provenanceStatus",
-                    "_provenanceStatusBySource",
-                ):
-                    self.assertNotIn(field, station)
+                    # Reporting-only provenance markers must stay out of the app-facing contract.
+                    for field in (
+                        "_provenanceStatus",
+                        "_provenanceStatusBySource",
+                    ):
+                        self.assertNotIn(field, station)
                 public_source_report = json.loads(
                     (Path("output") / f"v{pointer['version']}" / "source-report.json")
                     .read_text(encoding="utf-8")
