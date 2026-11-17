@@ -143,6 +143,7 @@ jobs:
             state/identity-continuity/"$CURRENT_VERSION".json
 
       - name: Persist externally verified provider snapshots
+        id: persist_external
         if: ${{ always() && steps.state_checkout.outcome == 'success' && steps.validate_state.outcome == 'success' && steps.build_catalogue.outcome != 'skipped' }}
         env:
           RADSYNC_S3_BUCKET: ${{ vars.RADSYNC_S3_BUCKET }}
@@ -199,6 +200,27 @@ jobs:
             git -C state commit -m "Finalize Radsync snapshot rotation for run ${GITHUB_RUN_ID}"
             git -C state push origin HEAD:refs/heads/radsync-state
           fi
+      - name: Verify external refresh report CLI retrieval
+        if: ${{ steps.persist_external.outcome == 'success' }}
+        env:
+          RADSYNC_S3_BUCKET: ${{ vars.RADSYNC_S3_BUCKET }}
+          RADSYNC_S3_ENDPOINT: ${{ vars.RADSYNC_S3_ENDPOINT }}
+          RADSYNC_S3_REGION: ${{ vars.RADSYNC_S3_REGION }}
+          RADSYNC_S3_PREFIX: ${{ vars.RADSYNC_S3_PREFIX }}
+          RADSYNC_DIAGNOSTICS_PREFIX: ${{ vars.RADSYNC_DIAGNOSTICS_PREFIX }}
+          RADSYNC_S3_ACCESS_KEY_ID: ${{ secrets.RADSYNC_S3_ACCESS_KEY_ID }}
+          RADSYNC_S3_SECRET_ACCESS_KEY: ${{ secrets.RADSYNC_S3_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          test -f "state/manifests/reports/${GITHUB_RUN_ID}.json"
+          mkdir -p verification
+          python -m sources.state_cli fetch-external-report \
+            --state-dir state \
+            --run-id "$GITHUB_RUN_ID" \
+            --output "verification/source-report.json"
+          cmp --silent state/diagnostics/source-report.json verification/source-report.json
+          echo "External refresh report CLI retrieval and byte-for-byte verification passed."
+
       - name: Upload identity ambiguity diagnostics
         if: ${{ always() && steps.state_checkout.outcome == 'success' }}
         uses: actions/upload-artifact@v4
