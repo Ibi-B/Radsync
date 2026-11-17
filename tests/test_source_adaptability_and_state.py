@@ -91,7 +91,7 @@ class PlaylistFormatTests(unittest.TestCase):
 
 class RepositoryPlaylistRefreshTests(unittest.IsolatedAsyncioTestCase):
     async def test_github_tree_request_uses_available_token_without_exposing_it(self):
-        playlist = '#EXTM3U\\n#EXTINF:-1,Example Radio\\nhttps://radio.example/live\\n'
+        playlist = '#EXTM3U\n#EXTINF:-1,Example Radio\nhttps://radio.example/live\n'
         tree = {"tree": [{"path": "stations/example.m3u", "type": "blob"}]}
 
         class FakeResponse:
