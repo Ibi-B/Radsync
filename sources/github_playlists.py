@@ -1,5 +1,6 @@
 """GitHub repository M3U discovery adapter for IPRD and radio-playlists."""
 import asyncio
+import os
 from urllib.parse import urlsplit
 
 import aiohttp
@@ -47,10 +48,15 @@ async def fetch_repository_playlists(
 
     # Failure to retrieve or decode the repository tree is systemic: never use
     # an incomplete listing as the basis for replacing a provider snapshot.
-    async with session.get(
-        repo_api_url,
-        headers={"User-Agent": "Radsync/1.0", "Accept": "application/vnd.github+json"},
-    ) as response:
+    api_headers = {
+        "User-Agent": "Radsync/1.0",
+        "Accept": "application/vnd.github+json",
+    }
+    github_token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if github_token:
+        api_headers["Authorization"] = f"Bearer {github_token}"
+
+    async with session.get(repo_api_url, headers=api_headers) as response:
         response.raise_for_status()
         payload = await response.json(content_type=None)
 
