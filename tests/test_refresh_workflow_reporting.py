@@ -38,6 +38,26 @@ class RefreshWorkflowReportingTests(unittest.TestCase):
             len(restore_step),
         )
 
+    def test_external_refresh_report_is_fetched_back_through_cli_after_publish(self):
+        workflow = Path(".github/workflows/refresh.yml").read_text(encoding="utf-8")
+        persist = workflow.index("- name: Persist externally verified provider snapshots")
+        verify = workflow.index("- name: Verify external refresh report CLI retrieval")
+        upload = workflow.index("- name: Upload identity ambiguity diagnostics")
+        persist_step = workflow[persist:verify]
+        verify_step = workflow[verify:upload]
+
+        self.assertIn("id: persist_external", persist_step)
+        self.assertLess(
+            persist_step.index("git -C state push origin HEAD:refs/heads/radsync-state"),
+            verify,
+        )
+        self.assertIn("steps.persist_external.outcome == 'success'", verify_step)
+        self.assertIn("fetch-external-report", verify_step)
+        self.assertIn("cmp --silent state/diagnostics/source-report.json verification/source-report.json", verify_step)
+        self.assertIn("RADSYNC_S3_BUCKET: ${{ vars.RADSYNC_S3_BUCKET }}", verify_step)
+        self.assertIn("RADSYNC_S3_ACCESS_KEY_ID: ${{ secrets.RADSYNC_S3_ACCESS_KEY_ID }}", verify_step)
+        self.assertIn("RADSYNC_S3_SECRET_ACCESS_KEY: ${{ secrets.RADSYNC_S3_SECRET_ACCESS_KEY }}", verify_step)
+
     def test_refresh_report_upload_requires_build_attempt_and_runs_after_build_failure(self):
         workflow = Path(".github/workflows/refresh.yml").read_text(encoding="utf-8")
         start = workflow.index("- name: Upload refresh report")
