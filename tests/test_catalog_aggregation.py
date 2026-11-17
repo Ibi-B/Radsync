@@ -96,7 +96,7 @@ class CatalogAggregationTests(unittest.TestCase):
         self.assertTrue(first["stationUuid"])
         self.assertEqual(0, first["defaultStreamIndex"])
 
-    def test_indistinguishable_aggregates_fail_closed(self):
+    def test_indistinguishable_aggregates_are_preserved_with_distinct_ids(self):
         first = make_station(
             "Same", country="GB", country_code="GB", language="English",
             streams=[make_stream("provider", "https://same.example/live", priority=50, source_station_id="same-id")],
@@ -105,10 +105,22 @@ class CatalogAggregationTests(unittest.TestCase):
             "Same", country="GB", country_code="GB", language="English",
             streams=[make_stream("provider", "https://same.example/live", priority=50, source_station_id="same-id")],
         )
-        with self.assertRaises(ValueError):
-            assign_canonical_station_ids([first, second])
+        assign_canonical_station_ids([first, second])
+        expected = {first["stationUuid"], second["stationUuid"]}
+        self.assertEqual(2, len(expected))
 
-    def test_identity_ambiguity_writes_private_diagnostic_before_failing(self):
+        reversed_first = make_station(
+            "Same", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider", "https://same.example/live", priority=50, source_station_id="same-id")],
+        )
+        reversed_second = make_station(
+            "Same", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider", "https://same.example/live", priority=50, source_station_id="same-id")],
+        )
+        assign_canonical_station_ids([reversed_second, reversed_first])
+        self.assertEqual(expected, {reversed_first["stationUuid"], reversed_second["stationUuid"]})
+
+    def test_identity_ambiguity_writes_diagnostic_after_preserving_both_stations(self):
         first = make_station(
             "Same", country="GB", country_code="GB", language="English",
             streams=[make_stream("provider", "https://same.example/live?token=secret", priority=50, source_station_id="same-id")],
@@ -119,15 +131,39 @@ class CatalogAggregationTests(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "diagnostics" / "identity-ambiguity.json"
-            with self.assertRaisesRegex(ValueError, "identical metadata and provider provenance"):
-                assign_canonical_station_ids([first, second], path, catalog_version=123)
+            assign_canonical_station_ids([first, second], path, catalog_version=123)
             report = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(123, report["catalogVersion"])
         self.assertEqual(1, len(report["ambiguousGroups"]))
         group = report["ambiguousGroups"][0]
-        self.assertEqual("likely_duplicate", group["classification"])
+        self.assertEqual("preserved_separately", group["classification"])
         self.assertEqual(2, len(group["records"]))
+        self.assertEqual(2, len({r["assignedStationUuid"] for r in group["records"]}))
         self.assertNotIn("token=secret", json.dumps(report))
+
+    def test_playlist_entry_provenance_disambiguates_same_name_and_endpoint(self):
+        url = "https://same.example/live"
+        first = make_station(
+            "Same", streams=[make_stream("provider", url, source_station_id="same-id")],
+            identity_evidence=[{
+                "source": "provider", "providerRecordId": "same-id",
+                "streamUrl": url, "playlistRepository": "org/repo",
+                "playlistPath": "countries/gb.m3u", "entryIndex": 12,
+            }],
+        )
+        second = make_station(
+            "Same", streams=[make_stream("provider", url, source_station_id="same-id")],
+            identity_evidence=[{
+                "source": "provider", "providerRecordId": "same-id",
+                "streamUrl": url, "playlistRepository": "org/repo",
+                "playlistPath": "genres/news.m3u", "entryIndex": 7,
+            }],
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            diagnostic = Path(directory) / "identity-ambiguity.json"
+            assign_canonical_station_ids([first, second], diagnostic)
+            self.assertFalse(diagnostic.exists())
+        self.assertNotEqual(first["stationUuid"], second["stationUuid"])
 
     def test_identity_diagnostic_captures_raw_provider_evidence(self):
         from scripts.build_radio_catalog import make_identity_evidence
@@ -157,10 +193,10 @@ class CatalogAggregationTests(unittest.TestCase):
             ])
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "identity-ambiguity.json"
-            with self.assertRaises(ValueError):
-                assign_canonical_station_ids(stations, path)
+            assign_canonical_station_ids(stations, path)
             report = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(2, len(report["ambiguousGroups"]))
+        self.assertEqual(4, len({station["stationUuid"] for station in stations}))
 
     def test_invalid_stream_urls_are_not_published(self):
         station = make_station(
@@ -264,7 +300,7 @@ class CatalogAggregationTests(unittest.TestCase):
         self.assertEqual({"provider-a", "provider-b"}, {item["source"] for item in first["streams"][0]["sourceRecords"]})
 
 
-    def test_original_twelve_ambiguity_groups_still_fail_closed(self):
+    def test_original_twelve_ambiguity_groups_are_kept_as_separate_stations(self):
         fixture_path = Path(__file__).parent / "fixtures" / "identity_ambiguity_groups.json"
         fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
         self.assertEqual(12, len(fixture["groups"]))
@@ -291,8 +327,8 @@ class CatalogAggregationTests(unittest.TestCase):
             second = make_station(
                 group["name"], streams=[make_stream(source, url, priority=50)]
             )
-            with self.assertRaises(ValueError, msg=group["name"]):
-                assign_canonical_station_ids([first, second])
+            assign_canonical_station_ids([first, second])
+            self.assertNotEqual(first["stationUuid"], second["stationUuid"], group["name"])
 
     def test_complete_playlist_provenance_survives_shared_endpoint_merge(self):
         url = "https://shared.example/live"
