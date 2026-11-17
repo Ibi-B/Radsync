@@ -24,20 +24,37 @@ class CatalogAggregationTests(unittest.TestCase):
             streams=[make_stream(source, url, bitrate=bitrate, priority=priority)],
         )
 
-    def test_duplicate_station_keeps_all_sources_and_ranks_default(self):
-        preferred = self.station("high-priority", "https://high.example/live", 90)
-        alternate = self.station("fallback", "https://fallback.example/live", 60)
+    def test_same_provider_station_keeps_stream_variants_and_ranks_default(self):
+        preferred = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream(
+                "radio-browser", "https://high.example/live", codec="AAC",
+                bitrate=192, priority=90, source_station_id="rb-1",
+            )],
+        )
+        alternate = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream(
+                "radio-browser", "https://fallback.example/live", codec="MP3",
+                bitrate=128, priority=60, source_station_id="rb-1",
+            )],
+        )
 
         self.assertTrue(stations_compatible(preferred, alternate))
+        self.assertIs(preferred, find_station_match([preferred], alternate))
         merge_station(preferred, alternate)
 
         self.assertEqual(2, len(preferred["streams"]))
-        self.assertEqual("high-priority", preferred["defaultSource"])
+        self.assertEqual("radio-browser", preferred["defaultSource"])
         self.assertEqual(0, preferred["defaultStreamIndex"])
-        self.assertEqual({"fallback", "high-priority"}, set(preferred["sources"]))
+        self.assertEqual({"radio-browser"}, set(preferred["sources"]))
         self.assertEqual(
             {0, 1},
             {index for group in preferred["sourceGroups"] for index in group["streamIndexes"]},
+        )
+        self.assertEqual(
+            {("AAC", 192), ("MP3", 128)},
+            {(stream["codec"], stream["bitrate"]) for stream in preferred["streams"]},
         )
 
     def test_same_name_in_different_countries_is_not_merged(self):
@@ -64,7 +81,7 @@ class CatalogAggregationTests(unittest.TestCase):
         assign_canonical_station_ids(reversed_stations)
         self.assertEqual(expected, {station["stationUuid"] for station in reversed_stations})
 
-    def test_same_name_country_and_language_with_distinct_provider_ids_merge(self):
+    def test_same_name_and_metadata_with_distinct_provider_ids_are_not_merged(self):
         first = make_station(
             "Example Radio", country="GB", country_code="GB", language="English",
             streams=[make_stream("radio-browser", "https://one.example/live", priority=80, source_station_id="rb-1")],
@@ -73,28 +90,47 @@ class CatalogAggregationTests(unittest.TestCase):
             "Example Radio", country="GB", country_code="GB", language="English",
             streams=[make_stream("airwavedb", "https://two.example/live", priority=80, source_station_id="aw-2")],
         )
-        self.assertIs(first, find_station_match([first], second))
-        merge_station(first, second)
-        assign_canonical_station_ids([first])
-        self.assertEqual(2, len(first["streams"]))
-        self.assertEqual({"rb-1", "aw-2"}, {
-            source_id for stream in first["streams"] for source_id in stream["sourceStationIds"]
-        })
+        self.assertIsNone(find_station_match([first], second))
+        assign_canonical_station_ids([first, second])
+        self.assertNotEqual(first["stationUuid"], second["stationUuid"])
+        self.assertEqual(1, len(first["streams"]))
+        self.assertEqual(1, len(second["streams"]))
+
+    def test_identical_stream_endpoint_does_not_override_distinct_provider_ids(self):
+        url = "https://shared.example/live"
+        first = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-a", url, priority=80, source_station_id="a-1")],
+        )
+        second = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-b", url, priority=80, source_station_id="b-1")],
+        )
+        self.assertIsNone(find_station_match([first], second))
 
     def test_genuine_duplicate_keeps_all_streams_under_one_identity(self):
         first = make_station(
             "Example Radio", country="GB", country_code="GB", language="English",
-            streams=[make_stream("radio-browser", "https://one.example/live", priority=90, source_station_id="rb-1")],
+            streams=[make_stream(
+                "radio-browser", "https://one.example/live", codec="MP3",
+                bitrate=64, priority=90, source_station_id="rb-1",
+            )],
         )
         second = make_station(
             "Example Radio", country="GB", country_code="GB", language="English",
-            streams=[make_stream("airwavedb", "https://two.example/live", priority=80, source_station_id="aw-2")],
+            streams=[make_stream(
+                "radio-browser", "https://two.example/live", codec="AAC",
+                bitrate=128, priority=80, source_station_id="rb-1",
+            )],
         )
+        self.assertIs(first, find_station_match([first], second))
         merge_station(first, second)
         assign_canonical_station_ids([first])
         self.assertEqual(2, len(first["streams"]))
         self.assertTrue(first["stationUuid"])
         self.assertEqual(0, first["defaultStreamIndex"])
+        self.assertEqual({"MP3", "AAC"}, {stream["codec"] for stream in first["streams"]})
+        self.assertEqual({64, 128}, {stream["bitrate"] for stream in first["streams"]})
 
     def test_indistinguishable_aggregates_are_preserved_with_distinct_ids(self):
         first = make_station(
@@ -265,7 +301,20 @@ class CatalogAggregationTests(unittest.TestCase):
             "0 N - 2000s on Radio", country="Germany", country_code="DE", language="german",
             streams=[make_stream("radio-browser", "https://0n.example/live.other", priority=90, source_station_id="rb-3")],
         )
+        self.assertIsNone(find_station_match([first], incoming))
         self.assertIsNone(find_station_match([first, second], incoming))
+
+    def test_same_name_without_provider_ids_is_not_a_match_even_for_same_endpoint(self):
+        url = "https://same.example/live"
+        first = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider", url)],
+        )
+        incoming = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider", url)],
+        )
+        self.assertIsNone(find_station_match([first], incoming))
 
     def test_multiple_provider_ids_for_one_provider_are_never_overwritten(self):
         station = make_station(
