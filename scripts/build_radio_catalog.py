@@ -397,17 +397,85 @@ def _canonical_identity_base(station):
     return json.dumps(values, ensure_ascii=False, separators=(",", ":"))
 
 
+def _stable_identity_url(value):
+    """Strip volatile query/fragment data before using a URL as identity evidence."""
+    try:
+        parsed = urlsplit(str(value or "").strip())
+        if not parsed.scheme or not parsed.netloc:
+            return str(value or "")[:500]
+        return parsed._replace(query="", fragment="").geturl()[:500]
+    except ValueError:
+        return str(value or "")[:500]
+
+
 def _canonical_identity_disambiguator(station):
+    """Build a stable tie-breaker from provider IDs, streams, and source-entry provenance.
+
+    Ingestion timestamps and other run-specific fields are deliberately excluded.
+    Playlist path and entry index distinguish separate upstream observations without
+    claiming that they are alternate streams of the same canonical station.
+    """
     provider_ids = sorted(
         f"{source}:{source_id}"
         for source, ids in _source_ids_for_station(station).items()
         for source_id in ids
     )
     stream_provenance = sorted(
-        f"{stream.get('source', '')}:{stream.get('url', '')}"
+        "|".join((
+            str(stream.get("source") or ""),
+            _stable_identity_url(stream.get("url")),
+            str(stream.get("codec") or "").strip().casefold(),
+            str(stream.get("bitrate") or 0),
+        ))
         for stream in station.get("streams", [])
     )
-    return json.dumps({"providerIds": provider_ids, "streams": stream_provenance}, ensure_ascii=False, separators=(",", ":"))
+
+    source_records = []
+    for item in station.get("_identityEvidence", []):
+        if not isinstance(item, dict):
+            continue
+        stable_record = {
+            "source": str(item.get("source") or ""),
+            "providerStationUuid": str(item.get("providerStationUuid") or ""),
+            "providerRecordId": str(item.get("providerRecordId") or ""),
+            "sourceUrl": _stable_identity_url(item.get("sourceUrl")),
+            "playlistRepository": str(item.get("playlistRepository") or ""),
+            "playlistPath": str(item.get("playlistPath") or ""),
+            "entryIndex": item.get("entryIndex"),
+            "rawName": str(item.get("rawName") or ""),
+            "tags": sorted({
+                str(tag).strip().casefold()
+                for tag in item.get("tags", [])
+                if str(tag).strip()
+            }) if isinstance(item.get("tags"), (list, tuple, set)) else [],
+            "originalTitle": str(item.get("originalTitle") or ""),
+            "originalUrl": _stable_identity_url(item.get("originalUrl")),
+            "streamUrl": _stable_identity_url(item.get("streamUrl")),
+            "codec": str(item.get("codec") or "").strip().casefold(),
+            "bitrate": str(item.get("bitrate") or 0),
+        }
+        if any(value not in ("", None, []) for value in stable_record.values()):
+            source_records.append(stable_record)
+    source_records.sort(
+        key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    )
+
+    tags = sorted({
+        str(tag).strip().casefold()
+        for tag in station.get("tags", [])
+        if str(tag).strip()
+    })
+    return json.dumps(
+        {
+            "providerIds": provider_ids,
+            "streams": stream_provenance,
+            "sourceRecords": source_records,
+            "tags": tags,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
 
 
 def _identity_diagnostic_record(station):
@@ -457,7 +525,13 @@ def _identity_diagnostic_record(station):
 
 
 def assign_canonical_station_ids(stations, diagnostic_path=None, catalog_version=None):
-    """Assign deterministic UUIDv5 identities; write diagnostics before failing closed."""
+    """Assign every aggregate a deterministic ID without dropping ambiguous stations.
+
+    Distinct provider IDs or playlist-entry provenance produce distinct stable IDs.
+    When two aggregates are otherwise indistinguishable, an occurrence-qualified
+    UUIDv5 preserves both records. The ordinal is intentionally not treated as proof
+    that either aggregate is the same station or an alternate stream of the other.
+    """
     by_base = {}
     for station in stations:
         by_base.setdefault(_canonical_identity_base(station), []).append(station)
@@ -468,15 +542,27 @@ def assign_canonical_station_ids(stations, diagnostic_path=None, catalog_version
             collisions[0]["stationUuid"] = str(uuid.uuid5(RADSYNC_NAMESPACE, base))
             continue
 
-        fingerprints = {}
+        fingerprint_groups = {}
         for station in sorted(collisions, key=_canonical_identity_disambiguator):
             fingerprint = _canonical_identity_disambiguator(station)
-            fingerprints.setdefault(fingerprint, []).append(station)
-            station["stationUuid"] = str(uuid.uuid5(RADSYNC_NAMESPACE, f"{base}|{fingerprint}"))
+            fingerprint_groups.setdefault(fingerprint, []).append(station)
 
-        duplicates = [group for group in fingerprints.values() if len(group) > 1]
-        if duplicates:
-            records = [_identity_diagnostic_record(station) for station in collisions]
+        for fingerprint, matches in sorted(fingerprint_groups.items()):
+            for occurrence, station in enumerate(matches):
+                identity_key = f"{base}|{fingerprint}"
+                if len(matches) > 1:
+                    identity_key += f"|occurrence:{occurrence:06d}"
+                station["stationUuid"] = str(uuid.uuid5(RADSYNC_NAMESPACE, identity_key))
+
+        indistinguishable = [
+            group for group in fingerprint_groups.values() if len(group) > 1
+        ]
+        if indistinguishable:
+            records = []
+            for station in collisions:
+                record = _identity_diagnostic_record(station)
+                record["assignedStationUuid"] = station["stationUuid"]
+                records.append(record)
             identities = [
                 set(record["providerIdentities"]) for record in records
             ]
@@ -488,9 +574,14 @@ def assign_canonical_station_ids(stations, diagnostic_path=None, catalog_version
             ambiguous_groups.append({
                 "groupFingerprint": hashlib.sha256(base.encode("utf-8")).hexdigest(),
                 "canonicalIdentity": json.loads(base),
-                "classification": "likely_duplicate" if repeated_provider_identity else "ambiguous",
-                "reason": "Multiple separate aggregates have identical canonical metadata and provider/stream provenance.",
-                "duplicateFingerprintCount": len(duplicates),
+                "classification": "preserved_separately",
+                "reason": (
+                    "Separate aggregates have indistinguishable available identity evidence. "
+                    "Each is retained with an occurrence-qualified station ID; no merge or "
+                    "record deletion is performed."
+                ),
+                "repeatedProviderIdentity": repeated_provider_identity,
+                "duplicateFingerprintCount": len(indistinguishable),
                 "records": records,
             })
 
@@ -498,18 +589,17 @@ def assign_canonical_station_ids(stations, diagnostic_path=None, catalog_version
         report = {
             "generatedAt": datetime.now(timezone.utc).isoformat(),
             "catalogVersion": catalog_version,
+            "policy": (
+                "When canonical identity cannot be proven, retain each aggregate as a "
+                "separate station with a unique ID. Do not merge based on name or stream URL alone."
+            ),
             "ambiguousGroups": ambiguous_groups,
         }
         if diagnostic_path is not None:
             path = Path(diagnostic_path)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-        raise ValueError(
-            "Cannot assign stable distinct station identities: separate canonical stations "
-            "have identical metadata and provider provenance"
-        )
-
-    if diagnostic_path is not None:
+    elif diagnostic_path is not None:
         Path(diagnostic_path).unlink(missing_ok=True)
 
     identities = [station.get("stationUuid") for station in stations]
