@@ -1,4 +1,5 @@
 import json
+import os
 import aiohttp
 import tempfile
 import unittest
@@ -89,6 +90,41 @@ class PlaylistFormatTests(unittest.TestCase):
 
 
 class RepositoryPlaylistRefreshTests(unittest.IsolatedAsyncioTestCase):
+    async def test_github_tree_request_uses_available_token_without_exposing_it(self):
+        playlist = '#EXTM3U\n#EXTINF:-1,Example Radio\nhttps://radio.example/live\n'
+        tree = {"tree": [{"path": "stations/example.m3u", "type": "blob"}]}
+
+        class FakeResponse:
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                return False
+            def raise_for_status(self):
+                return None
+            async def json(self, content_type=None):
+                return tree
+            async def text(self):
+                return playlist
+
+        class FakeSession:
+            def __init__(self):
+                self.calls = []
+            def get(self, url, headers=None):
+                self.calls.append((url, headers or {}))
+                return FakeResponse()
+
+        session = FakeSession()
+        with patch.dict(os.environ, {"GITHUB_TOKEN": "fixture-token"}):
+            records = await fetch_repository_playlists(
+                session, "https://api.github.example/tree",
+                "https://raw.example/org/repo/main",
+            )
+
+        self.assertEqual(1, len(records))
+        api_headers = session.calls[0][1]
+        self.assertEqual("Bearer fixture-token", api_headers.get("Authorization"))
+        self.assertEqual("application/vnd.github+json", api_headers.get("Accept"))
+
     async def test_scan_reports_counts_and_tolerates_one_missing_file(self):
         playlist = (
             '#EXTM3U\n'

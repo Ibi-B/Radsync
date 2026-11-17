@@ -122,6 +122,8 @@ jobs:
 
       - name: Build catalogue using fresh or last-good provider data
         id: build_catalogue
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: python -m scripts.build_radio_catalog --state-dir state
 
       - name: Validate published catalogue
