@@ -260,8 +260,22 @@ async def diagnose(url: str, timeout_seconds: int) -> dict:
         except OSError as error:
             dns_error = f"{type(error).__name__}: {str(error)[:500]}"
 
+    public_egress_ip = None
+    public_egress_error = None
+    try:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=10)
+        ) as ip_session:
+            async with ip_session.get("https://api.ipify.org") as ip_response:
+                ip_response.raise_for_status()
+                public_egress_ip = (await ip_response.text()).strip()
+    except (aiohttp.ClientError, asyncio.TimeoutError, OSError) as error:
+        public_egress_error = f"{type(error).__name__}: {str(error)[:300]}"
+
     report: dict = {
         "configuredUrl": url,
+        "runnerPublicEgressIp": public_egress_ip,
+        "runnerPublicEgressIpError": public_egress_error,
         "dns": {"hostname": parsed_host, "resolvedAddresses": dns_addresses, "error": dns_error},
         "profiles": [],
         "notes": [
