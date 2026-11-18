@@ -56,7 +56,7 @@ class SourceNormalizationTests(unittest.TestCase):
 
 class PlaylistFormatTests(unittest.TestCase):
     def test_m3u_preserves_extended_metadata_and_handles_bom(self):
-        payload = '\ufeff#EXTM3U\n#EXTINF:-1 tvg-id="station.one" tvg-country="GB" tvg-country-code="GB" tvg-language="English" group-title="Jazz",Example Radio\nhttps://radio.example/live\n'
+        payload = '\ufeff#EXTM3U\n# Group: Jazz & Blues\n#EXTINF:-1 tvg-id="station.one" tvg-country="GB" tvg-country-code="GB" tvg-language="English" group-title="Jazz",Example Radio\nhttps://radio.example/live\n'
         records = parse_m3u(payload)
         self.assertEqual(1, len(records))
         self.assertEqual("Example Radio", records[0]["name"])
@@ -64,6 +64,7 @@ class PlaylistFormatTests(unittest.TestCase):
         self.assertEqual(["Jazz"], records[0]["genres"])
         self.assertEqual("GB", records[0]["country"])
         self.assertEqual("GB", records[0]["country_code"])
+        self.assertEqual("Jazz & Blues", records[0]["playlist_group"])
 
 
     def test_icecast_parser_handles_xml_namespaces_and_field_variants(self):
@@ -91,7 +92,7 @@ class PlaylistFormatTests(unittest.TestCase):
 
 class RepositoryPlaylistRefreshTests(unittest.IsolatedAsyncioTestCase):
     async def test_github_tree_request_uses_available_token_without_exposing_it(self):
-        playlist = '#EXTM3U\n#EXTINF:-1,Example Radio\nhttps://radio.example/live\n'
+        playlist = '#EXTM3U\n# Group: Jazz & Blues\n#EXTINF:-1,Example Radio\nhttps://radio.example/live\n'
         tree = {"tree": [{"path": "stations/example.m3u", "type": "blob"}]}
 
         class FakeResponse:
@@ -287,7 +288,7 @@ class RepositoryPlaylistRefreshTests(unittest.IsolatedAsyncioTestCase):
             category_from_path=True,
         )
         self.assertEqual(1, len(records))
-        self.assertEqual("Jazz Blues", records[0]["playlist_category"])
+        self.assertEqual("Jazz & Blues", records[0]["playlist_category"])
         self.assertEqual("playlists/jazz-blues.m3u", records[0]["playlist_path"])
 
 
