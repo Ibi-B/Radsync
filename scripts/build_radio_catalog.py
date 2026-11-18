@@ -11,7 +11,7 @@ import json
 import re
 import unicodedata
 import uuid
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -439,7 +439,13 @@ def stations_compatible(existing, incoming):
 
 
 def _identity_endpoint_key(value):
-    """Normalize a stream endpoint for matching, excluding volatile query/fragment data."""
+    """Normalize a stream endpoint without erasing station/channel query identity."""
+    volatile_query_keys = {
+        "token", "access_token", "auth", "authorization", "key", "api_key",
+        "apikey", "provider_token", "provider-token", "signature", "sig",
+        "expires", "expiry", "session", "sessionid", "hdnea", "policy",
+        "bitrate", "br", "codec", "format", "quality", "audio", "profile",
+    }
     try:
         parsed = urlsplit(str(value or "").strip())
         if parsed.scheme.casefold() not in ("http", "https") or not parsed.hostname:
@@ -452,7 +458,17 @@ def _identity_endpoint_key(value):
         ):
             host = f"{host}:{port}"
         path = re.sub(r"/+$", "", parsed.path or "") or "/"
-        return f"{parsed.scheme.casefold()}://{host}{path}"
+        # Credential, tracking, and stream-variant query values may differ
+        # between provider observations of the same feed. Keep meaningful
+        # station/channel selectors such as id=, mount=, and channel=.
+        query = sorted(
+            (key.casefold(), item)
+            for key, item in parse_qsl(parsed.query, keep_blank_values=True)
+            if key.casefold() not in volatile_query_keys
+        )
+        query_string = urlencode(query, doseq=True)
+        endpoint = f"{parsed.scheme.casefold()}://{host}{path}"
+        return f"{endpoint}?{query_string}" if query_string else endpoint
     except ValueError:
         return ""
 
