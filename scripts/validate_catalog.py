@@ -89,6 +89,51 @@ def validate_catalog(output=OUTPUT):
             print("Master stream count does not match station index")
             return 1
 
+        page_size = master.get("stationPageSize")
+        page_count = master.get("stationPageCount")
+        pages = master.get("stationPages")
+        if not isinstance(page_size, int) or page_size != 100:
+            print("Invalid global station page size")
+            return 1
+        if not isinstance(page_count, int) or not isinstance(pages, list) or page_count != len(pages):
+            print("Global station page count mismatch")
+            return 1
+        expected_order = sorted(
+            stations,
+            key=lambda station: (
+                str(station.get("name") or "").casefold(),
+                str(station.get("stationUuid") or ""),
+            ),
+        )
+        paged_ids = []
+        for page_index, item in enumerate(pages):
+            if item.get("index") != page_index:
+                print("Global station page indexes are not contiguous")
+                return 1
+            page_path = version_dir / item["url"]
+            if not page_path.exists():
+                print(f"Missing global station page: {item['url']}")
+                return 1
+            page = json.loads(page_path.read_text(encoding="utf-8"))
+            expected_offset = page_index * page_size
+            page_stations = page.get("stations", [])
+            expected_count = min(page_size, max(0, len(stations) - expected_offset))
+            if (
+                page.get("id") != "all"
+                or page.get("version") != version
+                or page.get("offset") != expected_offset
+                or page.get("total") != len(stations)
+                or len(page_stations) != expected_count
+                or item.get("count") != expected_count
+            ):
+                print(f"Invalid global station page metadata: {item['url']}")
+                return 1
+            paged_ids.extend(station.get("stationUuid") for station in page_stations)
+        expected_ids = [station.get("stationUuid") for station in expected_order]
+        if paged_ids != expected_ids or page_count != (len(stations) + page_size - 1) // page_size:
+            print("Global station pages do not cover the complete ordered station index")
+            return 1
+
         report_path = version_dir / "source-report.json"
         if not report_path.exists():
             print("Missing source report")
