@@ -29,19 +29,5 @@
       "minStationCount": 800,
       "minStreamCount": 800
     }
-  },
-  "rotationCleanup": [
-    {
-      "deleteKey": "radsync/state/current/radio-browser/44362231549-1bbcc3b139d9/sha256/56a365ad7eaefaecce46946227719ec10450162ae9b171bc17a71e4d91902ad6/active.jsonl.zst",
-      "replacementKey": "radsync/state/previous/radio-browser/44364349040-1e44794dfb13/sha256/56a365ad7eaefaecce46946227719ec10450162ae9b171bc17a71e4d91902ad6/previous.jsonl.zst",
-      "replacementRole": "previous",
-      "sha256": "56a365ad7eaefaecce46946227719ec10450162ae9b171bc17a71e4d91902ad6"
-    },
-    {
-      "deleteKey": "radsync/state/previous/radio-browser/44362231549-1bbcc3b139d9/sha256/9bf9170d1333b272a4aa59edbd8783b94e9bd00070fddadf11044a65dcc6ae1d/previous.jsonl.zst",
-      "replacementKey": "radsync/state/archive/radio-browser/2026-11-18T18-03-21Z-44364349040-1e44794dfb13-9bf9170d1333b272a4aa59edbd8783b94e9bd00070fddadf11044a65dcc6ae1d.jsonl.zst",
-      "replacementRole": "archive",
-      "sha256": "9bf9170d1333b272a4aa59edbd8783b94e9bd00070fddadf11044a65dcc6ae1d"
-    }
-  ]
+  }
 }
