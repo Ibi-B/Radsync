@@ -366,17 +366,17 @@ class CatalogAggregationTests(unittest.TestCase):
         self.assertIsNone(find_station_match([first], incoming))
         self.assertIsNone(find_station_match([first, second], incoming))
 
-    def test_same_name_without_provider_ids_is_not_a_match_even_for_same_endpoint(self):
+    def test_same_name_endpoint_and_location_match_without_provider_ids(self):
         url = "https://same.example/live"
         first = make_station(
             "Example Radio", country="GB", country_code="GB", language="English",
-            streams=[make_stream("provider", url)],
+            streams=[make_stream("provider-a", url)],
         )
         incoming = make_station(
             "Example Radio", country="GB", country_code="GB", language="English",
-            streams=[make_stream("provider", url)],
+            streams=[make_stream("provider-b", url)],
         )
-        self.assertIsNone(find_station_match([first], incoming))
+        self.assertIs(first, find_station_match([first], incoming))
 
     def test_multiple_provider_ids_for_one_provider_are_never_overwritten(self):
         station = make_station(
