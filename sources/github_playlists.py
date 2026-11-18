@@ -17,6 +17,7 @@ async def fetch_repository_playlists(
     repo_api_url: str,
     raw_base_url: str,
     report=None,
+    category_from_path: bool = False,
 ):
     """Fetch every discovered playlist; tolerate isolated failures with explicit coverage."""
     metrics = report if report is not None else {}
@@ -160,6 +161,10 @@ async def fetch_repository_playlists(
         metrics["recordProducingPlaylists"] += 1
         metrics["recordsProduced"] += len(records)
         for record in records:
+            if category_from_path:
+                filename = path.rsplit("/", 1)[-1]
+                category = filename.rsplit(".", 1)[0].replace("-", " ").strip()
+                record["playlist_category"] = category
             record["playlist_path"] = path
             record["playlist_url"] = playlist_url
             record["playlist_repository"] = repository_path
