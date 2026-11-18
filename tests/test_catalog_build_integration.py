@@ -31,6 +31,8 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
             "language": "English",
             "tags": "news",
             "stationuuid": "rb-1",
+            "homepage": "https://example-radio.test/",
+            "call_sign": "WEXM",
             "url_resolved": "https://radio-browser.example/live",
             "codec": "MP3",
             "bitrate": 128,
@@ -42,6 +44,8 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
             "countryCode": "GB",
             "language": "English",
             "tags": ["News"],
+            "website": "http://www.example-radio.test/",
+            "callsign": "W-EXM",
         }]
         airwave_streams = [{
             "stationId": "airwave-1",
@@ -64,25 +68,22 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 pointer = json.loads(Path("output/current/master-index.json").read_text(encoding="utf-8"))
                 master = json.loads((Path("output") / pointer["masterIndex"]).read_text(encoding="utf-8"))
                 payload = json.loads((Path("output") / f"v{pointer['version']}" / master["stationsUrl"]).read_text(encoding="utf-8"))
-                self.assertEqual(2, len(payload["stations"]))
-                stations_by_source = {
-                    station["defaultSource"]: station for station in payload["stations"]
-                }
-                self.assertEqual({"airwavedb", "radio-browser"}, set(stations_by_source))
-                for source, station in stations_by_source.items():
-                    self.assertEqual(1, len(station["streams"]))
-                    self.assertEqual({source}, set(station["sources"]))
-                    self.assertEqual(
-                        {source},
-                        {group["source"] for group in station["sourceGroups"]},
-                    )
+                self.assertEqual(1, len(payload["stations"]))
+                station = payload["stations"][0]
+                self.assertEqual(2, len(station["streams"]))
+                self.assertEqual("airwavedb", station["defaultSource"])
+                self.assertEqual({"airwavedb", "radio-browser"}, set(station["sources"]))
+                self.assertEqual(
+                    {"airwavedb", "radio-browser"},
+                    {group["source"] for group in station["sourceGroups"]},
+                )
 
-                    # Reporting-only provenance markers must stay out of the app-facing contract.
-                    for field in (
-                        "_provenanceStatus",
-                        "_provenanceStatusBySource",
-                    ):
-                        self.assertNotIn(field, station)
+                # Reporting-only provenance markers must stay out of the app-facing contract.
+                for field in (
+                    "_provenanceStatus",
+                    "_provenanceStatusBySource",
+                ):
+                    self.assertNotIn(field, station)
                 public_source_report = json.loads(
                     (Path("output") / f"v{pointer['version']}" / "source-report.json")
                     .read_text(encoding="utf-8")
