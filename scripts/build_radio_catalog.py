@@ -1617,11 +1617,48 @@ async def main(state_dir=Path("state"), snapshot_store: SnapshotStore | None = N
     countries = write_group(version_dir / "countries", country_groups)
     languages = write_group(version_dir / "languages", language_groups)
 
+    # Publish a bounded global page surface so clients can browse without
+    # downloading the complete station index. The legacy stations.json remains
+    # available for compatibility and offline export.
+    station_page_size = 100
+    ordered_stations = sorted(
+        stations,
+        key=lambda station: (
+            str(station.get("name") or "").casefold(),
+            str(station.get("stationUuid") or ""),
+        ),
+    )
+    station_page_dir = version_dir / "station-pages"
+    station_page_dir.mkdir(parents=True, exist_ok=True)
+    station_pages = []
+    for page_index, start in enumerate(range(0, len(ordered_stations), station_page_size)):
+        page_stations = ordered_stations[start:start + station_page_size]
+        page_name = f"page-{page_index:05d}.json"
+        page_path = station_page_dir / page_name
+        page_path.write_text(
+            json.dumps({
+                "id": "all",
+                "version": version,
+                "offset": start,
+                "total": len(ordered_stations),
+                "stations": page_stations,
+            }, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        station_pages.append({
+            "index": page_index,
+            "count": len(page_stations),
+            "url": f"station-pages/{page_name}",
+        })
+
     master = {
         "version": version,
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "stationCount": len(stations),
         "streamCount": sum(len(station["streams"]) for station in stations),
+        "stationPageSize": station_page_size,
+        "stationPageCount": len(station_pages),
+        "stationPages": station_pages,
         "groups": {
             "genres": {"url": "groups/genres.json", "items": genres},
             "countries": {"url": "groups/countries.json", "items": countries},

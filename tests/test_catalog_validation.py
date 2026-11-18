@@ -12,7 +12,7 @@ class CatalogValidationTests(unittest.TestCase):
             output = Path(temporary)
             version = 20261115220000000000
             version_dir = output / f"v{version}"
-            for name in ("groups", "genres", "countries", "languages"):
+            for name in ("groups", "genres", "countries", "languages", "station-pages"):
                 (version_dir / name).mkdir(parents=True, exist_ok=True)
 
             station = {
@@ -32,11 +32,18 @@ class CatalogValidationTests(unittest.TestCase):
             (version_dir / "stations.json").write_text(
                 json.dumps({"version": version, "stations": [station]}), encoding="utf-8"
             )
+            (version_dir / "station-pages" / "page-00000.json").write_text(
+                json.dumps({"id": "all", "version": version, "offset": 0, "total": 1, "stations": [station]}),
+                encoding="utf-8",
+            )
             master = {
                 "version": version,
                 "stationCount": 1,
                 "streamCount": 1,
                 "stationsUrl": "stations.json",
+                "stationPageSize": 100,
+                "stationPageCount": 1,
+                "stationPages": [{"index": 0, "count": 1, "url": "station-pages/page-00000.json"}],
                 "groups": {
                     key: {"url": f"groups/{key}.json"}
                     for key in ("genres", "countries", "languages")
@@ -62,7 +69,7 @@ class CatalogValidationTests(unittest.TestCase):
             output = Path(temporary)
             version = 20261115220000000001
             version_dir = output / f"v{version}"
-            for name in ("groups", "genres", "countries", "languages"):
+            for name in ("groups", "genres", "countries", "languages", "station-pages"):
                 (version_dir / name).mkdir(parents=True, exist_ok=True)
             station = {
                 "stationUuid": "duplicate-id",
@@ -74,8 +81,15 @@ class CatalogValidationTests(unittest.TestCase):
             }
             stations = [station, dict(station)]
             (version_dir / "stations.json").write_text(json.dumps({"version": version, "stations": stations}), encoding="utf-8")
+            (version_dir / "station-pages" / "page-00000.json").write_text(
+                json.dumps({"id": "all", "version": version, "offset": 0, "total": 2, "stations": stations}),
+                encoding="utf-8",
+            )
             master = {
                 "version": version, "stationCount": 2, "streamCount": 2, "stationsUrl": "stations.json",
+                "stationPageSize": 100,
+                "stationPageCount": 1,
+                "stationPages": [{"index": 0, "count": 1, "url": "station-pages/page-00000.json"}],
                 "groups": {key: {"url": f"groups/{key}.json"} for key in ("genres", "countries", "languages")},
             }
             (version_dir / "master-index.json").write_text(json.dumps(master), encoding="utf-8")
@@ -92,7 +106,7 @@ class CatalogValidationTests(unittest.TestCase):
             output = Path(temporary)
             version = 20261115220000000002
             version_dir = output / f"v{version}"
-            for name in ("groups", "genres", "countries", "languages"):
+            for name in ("groups", "genres", "countries", "languages", "station-pages"):
                 (version_dir / name).mkdir(parents=True, exist_ok=True)
             station = {
                 "stationUuid": "unique-id",
@@ -103,8 +117,15 @@ class CatalogValidationTests(unittest.TestCase):
                 "sourceGroups": [{"source": "provider", "streamIndexes": [0]}],
             }
             (version_dir / "stations.json").write_text(json.dumps({"version": version, "stations": [station]}), encoding="utf-8")
+            (version_dir / "station-pages" / "page-00000.json").write_text(
+                json.dumps({"id": "all", "version": version, "offset": 0, "total": 1, "stations": [station]}),
+                encoding="utf-8",
+            )
             master = {
                 "version": version, "stationCount": 1, "streamCount": 1, "stationsUrl": "stations.json",
+                "stationPageSize": 100,
+                "stationPageCount": 1,
+                "stationPages": [{"index": 0, "count": 1, "url": "station-pages/page-00000.json"}],
                 "groups": {key: {"url": f"groups/{key}.json"} for key in ("genres", "countries", "languages")},
             }
             (version_dir / "master-index.json").write_text(json.dumps(master), encoding="utf-8")

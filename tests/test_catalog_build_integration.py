@@ -70,6 +70,15 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 master = json.loads((Path("output") / pointer["masterIndex"]).read_text(encoding="utf-8"))
                 payload = json.loads((Path("output") / f"v{pointer['version']}" / master["stationsUrl"]).read_text(encoding="utf-8"))
                 self.assertEqual(1, len(payload["stations"]))
+                self.assertEqual(100, master["stationPageSize"])
+                self.assertEqual(1, master["stationPageCount"])
+                self.assertEqual(1, len(master["stationPages"]))
+                global_page_path = Path("output") / f"v{pointer['version']}" / master["stationPages"][0]["url"]
+                global_page = json.loads(global_page_path.read_text(encoding="utf-8"))
+                self.assertEqual("all", global_page["id"])
+                self.assertEqual(0, global_page["offset"])
+                self.assertEqual(1, global_page["total"])
+                self.assertEqual(payload["stations"][0]["stationUuid"], global_page["stations"][0]["stationUuid"])
                 station = payload["stations"][0]
                 self.assertEqual(2, len(station["streams"]))
                 self.assertEqual("airwavedb", station["defaultSource"])
