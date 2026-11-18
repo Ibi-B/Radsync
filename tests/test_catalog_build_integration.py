@@ -11,7 +11,7 @@ from scripts.validate_catalog import validate_catalog
 
 
 class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
-    async def test_offline_build_preserves_unmatched_provider_stations(self):
+    async def test_offline_build_reconciles_cross_provider_station_variants(self):
         config = {
             "radio_browser": {"enabled": True, "url": "https://fixture.invalid/stations", "priority": 90},
             "airwavedb": {"enabled": True, "stationsUrl": "https://fixture.invalid/stations", "streamsUrl": "https://fixture.invalid/streams", "priority": 85},
