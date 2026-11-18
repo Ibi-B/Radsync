@@ -23,6 +23,7 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
             "alon_drilich": {"enabled": False},
             "somafm": {"enabled": False},
             "bbc_radio": {"enabled": False},
+            "curated_radio": {"enabled": False},
         }
         radio_rows = [{
             "name": "Example Radio",
@@ -130,6 +131,7 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
             "alon_drilich": {"enabled": False},
             "somafm": {"enabled": False},
             "bbc_radio": {"enabled": False},
+            "curated_radio": {"enabled": False},
         }
 
         with tempfile.TemporaryDirectory() as temporary:
@@ -156,7 +158,7 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual("canonical-identity-assignment", report["failedStage"])
                 self.assertEqual("ValueError", report["error"]["type"])
                 self.assertEqual("identity collision fixture", report["error"]["message"])
-                self.assertEqual(10, len(report["sources"]))
+                self.assertEqual(11, len(report["sources"]))
                 self.assertTrue(all("ingestionStartedAt" in item for item in report["sources"]))
                 self.assertTrue(all("ingestionCompletedAt" in item for item in report["sources"]))
                 self.assertTrue(all("stationProvenance" in item for item in report["sources"]))
