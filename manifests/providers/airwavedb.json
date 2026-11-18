@@ -29,19 +29,5 @@
       "minStationCount": 50000,
       "minStreamCount": 52000
     }
-  },
-  "rotationCleanup": [
-    {
-      "deleteKey": "radsync/state/current/airwavedb/44280791159-62f42d2dc638/sha256/aa19596b9abea1257cf117c329e32319839e27a46977911c674d019023ca7bdc/active.jsonl.zst",
-      "replacementKey": "radsync/state/previous/airwavedb/44338693942-f4e4091cca30/sha256/aa19596b9abea1257cf117c329e32319839e27a46977911c674d019023ca7bdc/previous.jsonl.zst",
-      "replacementRole": "previous",
-      "sha256": "aa19596b9abea1257cf117c329e32319839e27a46977911c674d019023ca7bdc"
-    },
-    {
-      "deleteKey": "radsync/state/previous/airwavedb/44280791159-62f42d2dc638/sha256/19ce3d7d75a39f01a87253c71952ccada499d3276dba06d61ec79c3a14025e58/previous.jsonl.zst",
-      "replacementKey": "radsync/state/archive/airwavedb/2026-11-18T15-47-02Z-44338693942-f4e4091cca30-19ce3d7d75a39f01a87253c71952ccada499d3276dba06d61ec79c3a14025e58.jsonl.zst",
-      "replacementRole": "archive",
-      "sha256": "19ce3d7d75a39f01a87253c71952ccada499d3276dba06d61ec79c3a14025e58"
-    }
-  ]
+  }
 }
