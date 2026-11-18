@@ -11,7 +11,7 @@ from scripts.validate_catalog import validate_catalog
 
 
 class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
-    async def test_offline_build_publishes_grouped_sources_and_ranked_default(self):
+    async def test_offline_build_reconciles_cross_provider_station_variants(self):
         config = {
             "radio_browser": {"enabled": True, "url": "https://fixture.invalid/stations", "priority": 90},
             "airwavedb": {"enabled": True, "stationsUrl": "https://fixture.invalid/stations", "streamsUrl": "https://fixture.invalid/streams", "priority": 85},
@@ -31,6 +31,8 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
             "language": "English",
             "tags": "news",
             "stationuuid": "rb-1",
+            "homepage": "https://example-radio.test/",
+            "call_sign": "WEXM",
             "url_resolved": "https://radio-browser.example/live",
             "codec": "MP3",
             "bitrate": 128,
@@ -42,6 +44,8 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
             "countryCode": "GB",
             "language": "English",
             "tags": ["News"],
+            "website": "http://www.example-radio.test/",
+            "callsign": "W-EXM",
         }]
         airwave_streams = [{
             "stationId": "airwave-1",
@@ -69,7 +73,10 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(2, len(station["streams"]))
                 self.assertEqual("airwavedb", station["defaultSource"])
                 self.assertEqual({"airwavedb", "radio-browser"}, set(station["sources"]))
-                self.assertEqual({"airwavedb", "radio-browser"}, {group["source"] for group in station["sourceGroups"]})
+                self.assertEqual(
+                    {"airwavedb", "radio-browser"},
+                    {group["source"] for group in station["sourceGroups"]},
+                )
 
                 # Reporting-only provenance markers must stay out of the app-facing contract.
                 for field in (
