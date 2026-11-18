@@ -147,6 +147,11 @@ def _normalize_identity_label(value):
     return " ".join(re.findall(r"[a-z0-9]+", str(value or "").casefold()))
 
 
+def _normalize_call_sign(value):
+    # Call signs are identifiers; punctuation and spacing are formatting only.
+    return re.sub(r"[^a-z0-9]", "", str(value or "").casefold())
+
+
 def _normalize_identity_website(value):
     raw = str(value or "").strip()
     if not raw:
@@ -229,7 +234,7 @@ def make_identity_evidence(source, record=None, provider_record_id=None, source_
         "originalUrl": safe_url(record.get("original_url") or stream_url or get_value(record, "url")),
         "playlistRepository": str(record.get("playlist_repository") or "")[:200],
         "website": _normalize_identity_website(website),
-        "callSign": _normalize_identity_label(call_sign),
+        "callSign": _normalize_call_sign(call_sign),
         "city": _normalize_identity_label(city),
         "region": _normalize_identity_label(region),
         "rawMetadata": raw_metadata,
@@ -480,7 +485,7 @@ def _station_identity_facts(station):
     }
     call_signs = {
         value for value in (
-            _normalize_identity_label(item.get("callSign"))
+            _normalize_call_sign(item.get("callSign"))
             for item in evidence if isinstance(item, dict)
         ) if value
     }
