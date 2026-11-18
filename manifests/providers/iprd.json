@@ -3,9 +3,9 @@
   "layoutVersion": 2,
   "format": "radsync-jsonl-zstd-v1",
   "source": "iprd",
-  "objectKey": "radsync/state/current/iprd/44280791159-62f42d2dc638/sha256/375d2d82d4cd62c6d58b2e5aac1054920c74325e6082faf7dd204948fcd229bc/active.jsonl.zst",
-  "sha256": "375d2d82d4cd62c6d58b2e5aac1054920c74325e6082faf7dd204948fcd229bc",
-  "compressedBytes": 1550500,
+  "objectKey": "radsync/state/current/iprd/44338693942-f4e4091cca30/sha256/16508fb2c62d02180959875eda12ad5228f54da62cf35063f6c8697c596168dd/active.jsonl.zst",
+  "sha256": "16508fb2c62d02180959875eda12ad5228f54da62cf35063f6c8697c596168dd",
+  "compressedBytes": 1550499,
   "stationCount": 40011,
   "streamCount": 40011,
   "snapshotUpdatedAt": "2026-11-16T09:21:19.452538+00:00",
@@ -16,10 +16,10 @@
     "maxStreamDropRatio": 0.15,
     "minRecordProductionCoverage": 0.8
   },
-  "verifiedAt": "2026-11-18T10:04:21.207428+00:00",
+  "verifiedAt": "2026-11-18T15:48:53.512977+00:00",
   "previous": {
-    "objectKey": "radsync/state/previous/iprd/44280791159-62f42d2dc638/sha256/1316b90f391915f9f0b9fe1a528b95c53d5eba43c5e3985fba37306070704b1e/previous.jsonl.zst",
-    "sha256": "1316b90f391915f9f0b9fe1a528b95c53d5eba43c5e3985fba37306070704b1e",
+    "objectKey": "radsync/state/previous/iprd/44338693942-f4e4091cca30/sha256/375d2d82d4cd62c6d58b2e5aac1054920c74325e6082faf7dd204948fcd229bc/previous.jsonl.zst",
+    "sha256": "375d2d82d4cd62c6d58b2e5aac1054920c74325e6082faf7dd204948fcd229bc",
     "compressedBytes": 1550500,
     "stationCount": 40011,
     "streamCount": 40011,
@@ -31,5 +31,19 @@
       "minStationCount": 35000,
       "minStreamCount": 35000
     }
-  }
+  },
+  "rotationCleanup": [
+    {
+      "deleteKey": "radsync/state/current/iprd/44280791159-62f42d2dc638/sha256/375d2d82d4cd62c6d58b2e5aac1054920c74325e6082faf7dd204948fcd229bc/active.jsonl.zst",
+      "replacementKey": "radsync/state/previous/iprd/44338693942-f4e4091cca30/sha256/375d2d82d4cd62c6d58b2e5aac1054920c74325e6082faf7dd204948fcd229bc/previous.jsonl.zst",
+      "replacementRole": "previous",
+      "sha256": "375d2d82d4cd62c6d58b2e5aac1054920c74325e6082faf7dd204948fcd229bc"
+    },
+    {
+      "deleteKey": "radsync/state/previous/iprd/44280791159-62f42d2dc638/sha256/1316b90f391915f9f0b9fe1a528b95c53d5eba43c5e3985fba37306070704b1e/previous.jsonl.zst",
+      "replacementKey": "radsync/state/archive/iprd/2026-11-18T15-47-02Z-44338693942-f4e4091cca30-1316b90f391915f9f0b9fe1a528b95c53d5eba43c5e3985fba37306070704b1e.jsonl.zst",
+      "replacementRole": "archive",
+      "sha256": "1316b90f391915f9f0b9fe1a528b95c53d5eba43c5e3985fba37306070704b1e"
+    }
+  ]
 }
