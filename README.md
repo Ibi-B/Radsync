@@ -67,7 +67,7 @@ The workflow uploads this report as a GitHub Actions artifact (14-day retention)
 
 Each station contains canonical identity, provider IDs, descriptive metadata, `streams`, `sources`, `sourceGroups`, `defaultStreamIndex`, and `defaultSource`. BeastED should display one station record, show its source groups as alternatives, and play the default stream unless the user chooses another source.
 
-Country group entries in the master index additionally expose `label`, `pageSize`, `pageCount`, and immutable `pages` references. Each country page contains at most 100 station records plus its `version`, `offset`, and `total`. Clients should follow the current pointer, verify the versioned master index, and request only the selected country's pages rather than downloading the full global `stations.json` file.
+Global catalogue pages are exposed as `stationPages`, `stationPageSize`, and `stationPageCount` in the master index. Each immutable page contains at most 100 station records plus its `version`, `offset`, and `total`, ordered by station name and canonical UUID. Country group entries additionally expose `label`, `pageSize`, `pageCount`, and immutable `pages` references. Clients should follow the current pointer, verify the versioned master index, and request only the pages needed for the current view rather than downloading the full global `stations.json` file.
 
 ## Local checks
 
