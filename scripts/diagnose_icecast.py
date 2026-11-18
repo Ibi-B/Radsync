@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import json
 import re
+import socket
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -57,8 +58,17 @@ async def request_probe(
             headers=headers,
             allow_redirects=True,
         ) as response:
+            peer = None
+            connection = response.connection
+            transport = connection.transport if connection else None
+            if transport is not None:
+                peer = transport.get_extra_info("peername")
             body = await response.read()
             result.update({
+                "remotePeer": (
+                    {"ip": str(peer[0]), "port": int(peer[1])}
+                    if isinstance(peer, tuple) and len(peer) >= 2 else None
+                ),
                 "httpStatus": response.status,
                 "finalUrl": str(response.url),
                 "redirectCount": len(response.history),
@@ -238,8 +248,21 @@ async def diagnose(url: str, timeout_seconds: int) -> dict:
         }),
     ]
 
+    parsed_host = urlsplit(url).hostname
+    dns_addresses = []
+    dns_error = None
+    if parsed_host:
+        try:
+            dns_addresses = sorted({
+                item[4][0]
+                for item in socket.getaddrinfo(parsed_host, None, type=socket.SOCK_STREAM)
+            })
+        except OSError as error:
+            dns_error = f"{type(error).__name__}: {str(error)[:500]}"
+
     report: dict = {
         "configuredUrl": url,
+        "dns": {"hostname": parsed_host, "resolvedAddresses": dns_addresses, "error": dns_error},
         "profiles": [],
         "notes": [
             "Read-only diagnostics; no provider snapshots or catalogue output are changed.",
