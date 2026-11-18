@@ -256,6 +256,41 @@ class RepositoryPlaylistRefreshTests(unittest.IsolatedAsyncioTestCase):
         )
 
 
+    async def test_curated_playlist_path_becomes_category_metadata(self):
+        tree = {"tree": [{"path": "playlists/jazz-blues.m3u", "type": "blob"}]}
+        playlist = '#EXTM3U\\n#EXTINF:-1,Example Jazz\\nhttps://radio.example/jazz\\n'
+
+        class FakeResponse:
+            def __init__(self, payload=None, body=""):
+                self.payload, self.body = payload, body
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                return False
+            def raise_for_status(self):
+                return None
+            async def json(self, content_type=None):
+                return self.payload
+            async def text(self):
+                return self.body
+
+        class FakeSession:
+            def get(self, url, headers=None):
+                if "api.github" in url:
+                    return FakeResponse(payload=tree)
+                return FakeResponse(body=playlist)
+
+        records = await fetch_repository_playlists(
+            FakeSession(),
+            "https://api.github.example/tree",
+            "https://raw.example/org/repo/main",
+            category_from_path=True,
+        )
+        self.assertEqual(1, len(records))
+        self.assertEqual("Jazz Blues", records[0]["playlist_category"])
+        self.assertEqual("playlists/jazz-blues.m3u", records[0]["playlist_path"])
+
+
 
 class ProviderSnapshotTests(unittest.TestCase):
     def test_snapshot_round_trip_and_validation(self):
