@@ -522,6 +522,7 @@ def _config_by_source(config):
         "alon-drilich": "alon_drilich",
         "somafm": "somafm",
         "bbc-radio": "bbc_radio",
+        "curated-radio": "curated_radio",
     }
     return {
         source_id: config.get(config_key, {})
