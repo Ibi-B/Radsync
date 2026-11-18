@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "layoutVersion": 2,
+  "format": "radsync-jsonl-zstd-v1",
+  "source": "curated-radio",
+  "objectKey": "radsync/state/current/curated-radio/44364349040-1e44794dfb13/sha256/0d402f0968a8d8c2a282f3a97fd14ba10018b318a56591dfba6b79c9409e1748/active.jsonl.zst",
+  "sha256": "0d402f0968a8d8c2a282f3a97fd14ba10018b318a56591dfba6b79c9409e1748",
+  "compressedBytes": 35837,
+  "stationCount": 469,
+  "streamCount": 469,
+  "snapshotUpdatedAt": "2026-11-18T18:00:09.157248+00:00",
+  "anomalyBounds": {
+    "minStationCount": 1,
+    "maxStationDropRatio": 0.1,
+    "minStreamCount": 1,
+    "maxStreamDropRatio": 0.15,
+    "minRecordProductionCoverage": 0.8
+  },
+  "verifiedAt": "2026-11-18T18:05:03.728470+00:00"
+}

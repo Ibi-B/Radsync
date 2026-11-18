@@ -3,31 +3,45 @@
   "layoutVersion": 2,
   "format": "radsync-jsonl-zstd-v1",
   "source": "somafm",
-  "objectKey": "radsync/state/current/somafm/44362231549-1bbcc3b139d9/sha256/afde12cfa90ea6cfc48bc3047ad3650574f159b12f09792e2d6a73c398b4c446/active.jsonl.zst",
-  "sha256": "afde12cfa90ea6cfc48bc3047ad3650574f159b12f09792e2d6a73c398b4c446",
-  "compressedBytes": 8402,
+  "objectKey": "radsync/state/current/somafm/44364349040-1e44794dfb13/sha256/8ac96381f0d776e4ec5e573d084c5a5cd9d5ae05ba56711e4519ca60235823ee/active.jsonl.zst",
+  "sha256": "8ac96381f0d776e4ec5e573d084c5a5cd9d5ae05ba56711e4519ca60235823ee",
+  "compressedBytes": 8397,
   "stationCount": 51,
   "streamCount": 204,
-  "snapshotUpdatedAt": "2026-11-18T17:48:50.950993+00:00",
+  "snapshotUpdatedAt": "2026-11-18T17:59:39.260420+00:00",
   "anomalyBounds": {
     "minStationCount": 40,
     "maxStationDropRatio": 0.1,
     "minStreamCount": 150,
     "maxStreamDropRatio": 0.15
   },
-  "verifiedAt": "2026-11-18T17:57:10.791682+00:00",
+  "verifiedAt": "2026-11-18T18:06:15.746748+00:00",
   "previous": {
-    "objectKey": "radsync/state/previous/somafm/44362231549-1bbcc3b139d9/sha256/213072c19bcb1205b458f1629dcc3156f49bfcfd6d7db599ac06632675c8dde0/previous.jsonl.zst",
-    "sha256": "213072c19bcb1205b458f1629dcc3156f49bfcfd6d7db599ac06632675c8dde0",
-    "compressedBytes": 8318,
+    "objectKey": "radsync/state/previous/somafm/44364349040-1e44794dfb13/sha256/afde12cfa90ea6cfc48bc3047ad3650574f159b12f09792e2d6a73c398b4c446/previous.jsonl.zst",
+    "sha256": "afde12cfa90ea6cfc48bc3047ad3650574f159b12f09792e2d6a73c398b4c446",
+    "compressedBytes": 8402,
     "stationCount": 51,
     "streamCount": 204,
-    "snapshotUpdatedAt": "2026-11-18T17:42:25.811366+00:00",
+    "snapshotUpdatedAt": "2026-11-18T17:48:50.950993+00:00",
     "anomalyBounds": {
       "maxStationDropRatio": 0.1,
       "maxStreamDropRatio": 0.15,
       "minStationCount": 40,
       "minStreamCount": 150
     }
-  }
+  },
+  "rotationCleanup": [
+    {
+      "deleteKey": "radsync/state/current/somafm/44362231549-1bbcc3b139d9/sha256/afde12cfa90ea6cfc48bc3047ad3650574f159b12f09792e2d6a73c398b4c446/active.jsonl.zst",
+      "replacementKey": "radsync/state/previous/somafm/44364349040-1e44794dfb13/sha256/afde12cfa90ea6cfc48bc3047ad3650574f159b12f09792e2d6a73c398b4c446/previous.jsonl.zst",
+      "replacementRole": "previous",
+      "sha256": "afde12cfa90ea6cfc48bc3047ad3650574f159b12f09792e2d6a73c398b4c446"
+    },
+    {
+      "deleteKey": "radsync/state/previous/somafm/44362231549-1bbcc3b139d9/sha256/213072c19bcb1205b458f1629dcc3156f49bfcfd6d7db599ac06632675c8dde0/previous.jsonl.zst",
+      "replacementKey": "radsync/state/archive/somafm/2026-11-18T18-03-21Z-44364349040-1e44794dfb13-213072c19bcb1205b458f1629dcc3156f49bfcfd6d7db599ac06632675c8dde0.jsonl.zst",
+      "replacementRole": "archive",
+      "sha256": "213072c19bcb1205b458f1629dcc3156f49bfcfd6d7db599ac06632675c8dde0"
+    }
+  ]
 }
