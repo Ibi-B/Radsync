@@ -1436,6 +1436,7 @@ async def main(state_dir=Path("state"), snapshot_store: SnapshotStore | None = N
                 source_config["repoApiUrl"],
                 source_config["rawBaseUrl"],
                 report=playlist_refresh,
+                category_from_path=source_config.get("categoryFromPath", False),
             )
         finally:
             source_config["_playlistRefresh"] = playlist_refresh
@@ -1456,7 +1457,11 @@ async def main(state_dir=Path("state"), snapshot_store: SnapshotStore | None = N
             result.append(make_station(
                 item["name"], country=item.get("country", ""),
                 country_code=item.get("country_code", ""),
-                language=item.get("language", ""), tags=item.get("genres") or [],
+                language=item.get("language", ""),
+                tags=(item.get("genres") or []) + (
+                    [item["playlist_category"]]
+                    if source_id == "curated-radio" and item.get("playlist_category") else []
+                ),
                 streams=[make_stream(source_id, item["stream_url"], priority=priority,
                                      source_station_id=item.get("station_id"))],
                 identity_evidence=[evidence],
@@ -1476,6 +1481,7 @@ async def main(state_dir=Path("state"), snapshot_store: SnapshotStore | None = N
             load_source(session, "alon-drilich", config["alon_drilich"], lambda s, c, p: load_repo_playlists(s, "alon-drilich", c, p), state_dir, snapshot_store),
             load_source(session, "somafm", config["somafm"], load_somafm, state_dir, snapshot_store),
             load_source(session, "bbc-radio", config["bbc_radio"], lambda s, c, p: load_m3u(s, "bbc-radio", c["url"], p), state_dir, snapshot_store),
+            load_source(session, "curated-radio", config["curated_radio"], lambda s, c, p: load_repo_playlists(s, "curated-radio", c, p), state_dir, snapshot_store),
         )
 
     stations_by_name = {}
