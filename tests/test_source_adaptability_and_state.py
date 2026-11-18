@@ -259,7 +259,7 @@ class RepositoryPlaylistRefreshTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_curated_playlist_path_becomes_category_metadata(self):
         tree = {"tree": [{"path": "playlists/jazz-blues.m3u", "type": "blob"}]}
-        playlist = '#EXTM3U\n#EXTINF:-1,Example Jazz\nhttps://radio.example/jazz\n'
+        playlist = '#EXTM3U\n# Group: Jazz & Blues\n#EXTINF:-1,Example Jazz\nhttps://radio.example/jazz\n'
 
         class FakeResponse:
             def __init__(self, payload=None, body=""):
