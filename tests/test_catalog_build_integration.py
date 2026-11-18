@@ -72,6 +72,20 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 station = payload["stations"][0]
                 self.assertEqual(2, len(station["streams"]))
                 self.assertEqual("airwavedb", station["defaultSource"])
+
+                # BeastED can page a selected country without downloading the
+                # full 160k+ station catalogue or an unbounded country payload.
+                country_items = master["groups"]["countries"]["items"]
+                united_kingdom = next(item for item in country_items if item["name"] == "gb")
+                self.assertEqual("United Kingdom", united_kingdom["label"])
+                self.assertEqual(100, united_kingdom["pageSize"])
+                self.assertEqual(1, united_kingdom["pageCount"])
+                self.assertEqual(1, len(united_kingdom["pages"]))
+                page_path = Path("output") / f"v{pointer['version']}" / united_kingdom["pages"][0]["url"]
+                page = json.loads(page_path.read_text(encoding="utf-8"))
+                self.assertEqual(0, page["offset"])
+                self.assertEqual(1, page["total"])
+                self.assertEqual(station["stationUuid"], page["stations"][0]["stationUuid"])
                 self.assertEqual({"airwavedb", "radio-browser"}, set(station["sources"]))
                 self.assertEqual(
                     {"airwavedb", "radio-browser"},
