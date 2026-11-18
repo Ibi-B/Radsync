@@ -163,7 +163,7 @@ async def fetch_repository_playlists(
         for record in records:
             if category_from_path:
                 filename = path.rsplit("/", 1)[-1]
-                category = filename.rsplit(".", 1)[0].replace("-", " ").strip()
+                category = record.get("playlist_group") or filename.rsplit(".", 1)[0].replace("-", " ").title()
                 record["playlist_category"] = category
             record["playlist_path"] = path
             record["playlist_url"] = playlist_url
