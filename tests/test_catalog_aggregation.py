@@ -96,7 +96,7 @@ class CatalogAggregationTests(unittest.TestCase):
         self.assertEqual(1, len(first["streams"]))
         self.assertEqual(1, len(second["streams"]))
 
-    def test_cross_provider_shared_endpoint_and_location_match_one_station(self):
+    def test_cross_provider_endpoint_equivalence_ignores_tokens_but_keeps_urls(self):
         url = "https://shared.example/live?provider-token=one"
         first = make_station(
             "Example Radio", country="United Kingdom", country_code="GB", language="English",
@@ -108,11 +108,16 @@ class CatalogAggregationTests(unittest.TestCase):
         )
         self.assertIs(first, find_station_match([first], second))
         merge_station(first, second)
-        self.assertEqual(1, len(first["streams"]))
-        self.assertEqual({"radio-browser", "airwavedb"}, set(first["streams"][0]["sources"]))
+        # Endpoint identity ignores volatile query tokens, but both original
+        # playback URLs are retained rather than silently rewriting either.
+        self.assertEqual(2, len(first["streams"]))
+        self.assertEqual(
+            {url, "https://shared.example/live?provider-token=two"},
+            {stream["url"] for stream in first["streams"]},
+        )
         self.assertEqual(
             {"radio-browser", "airwavedb"},
-            set(first["streams"][0]["providerSources"]),
+            {source for stream in first["streams"] for source in stream["sources"]},
         )
 
     def test_cross_provider_same_call_sign_and_website_merge_different_streams(self):
