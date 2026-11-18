@@ -31,13 +31,5 @@
       "minStationCount": 1,
       "minStreamCount": 1
     }
-  },
-  "rotationCleanup": [
-    {
-      "deleteKey": "radsync/state/current/curated-radio/44364349040-1e44794dfb13/sha256/0d402f0968a8d8c2a282f3a97fd14ba10018b318a56591dfba6b79c9409e1748/active.jsonl.zst",
-      "replacementKey": "radsync/state/previous/curated-radio/44365464391-b0b62ffc0d88/sha256/0d402f0968a8d8c2a282f3a97fd14ba10018b318a56591dfba6b79c9409e1748/previous.jsonl.zst",
-      "replacementRole": "previous",
-      "sha256": "0d402f0968a8d8c2a282f3a97fd14ba10018b318a56591dfba6b79c9409e1748"
-    }
-  ]
+  }
 }
