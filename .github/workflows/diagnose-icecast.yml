@@ -2,6 +2,11 @@ name: Diagnose Icecast feed
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/diagnose-icecast.yml
 
 permissions:
   contents: read
