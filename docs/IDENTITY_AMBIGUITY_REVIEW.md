@@ -56,7 +56,7 @@ Station matching uses a confidence hierarchy:
 4. A shared URL is not sufficient when the known call signs conflict. Country/language contradictions also block matching.
 5. Matching names, country, language, genres, or provider IDs from different providers alone are not sufficient. Weak or tied candidate matches remain separate and are recorded for review.
 
-Provider IDs are scoped to their provider; different IDs across providers do not prove different stations. Stream URLs, codecs, and bitrates describe stream offerings, not canonical station identity. Query tokens and URL fragments are ignored when comparing stream endpoint identity, but the original stream URLs are retained for playback. Where evidence is inconclusive, preserve each aggregate with its own station ID rather than silently merging or dropping it.
+Provider IDs are scoped to their provider; different IDs across providers do not prove different stations. Stream URLs, codecs, and bitrates describe stream offerings, not canonical station identity. Credential/tracking tokens, URL fragments, and known stream-variant query parameters (such as bitrate or codec) are ignored when comparing endpoints. Station/channel selectors (such as station IDs, mount names, and channel IDs) remain part of endpoint identity, and the original stream URLs are always retained for playback. Where evidence is inconclusive, preserve each aggregate with its own station ID rather than silently merging or dropping it.
 
 ## Required next evidence
 
