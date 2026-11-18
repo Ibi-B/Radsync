@@ -48,11 +48,15 @@ The intended trade-off is explicit: **a possible duplicate is safer than losing 
 
 ## Automatic matching gate
 
-The catalogue matcher now requires an exact intersection of provider-qualified station identity keys, represented as `(provider, provider station ID)`, before two aggregates can be merged. A matching normalized name and compatible country/language are candidate filters only; they cannot establish identity on their own.
+Station matching uses a confidence hierarchy:
 
-A shared stream URL is not station identity. Neither are codec or bitrate: these are stream-level attributes. When the same provider station ID is present on multiple records, the records can be reconciled into one station while retaining each distinct URL, codec, and bitrate as an alternate stream. When IDs are absent or differ, the records remain separate—even when their names, metadata, or stream URLs match. Cross-provider merging therefore requires an explicit trusted identity mapping; matching names or endpoints is not a substitute.
+1. An exact provider-qualified identity key `(provider, provider station ID)` is the strongest match.
+2. Cross-provider records can also be reconciled when the normalized station name matches, country/language metadata is compatible, and there is a strong independent identity anchor. Anchors include the same normalized stream endpoint, call sign, or official website.
+3. When stream URLs differ, matching call sign or official website plus matching geography/language can establish a strong cross-provider match. This allows multiple bitrate, codec, and server variants to remain streams under one station.
+4. A shared URL is not sufficient when the known call signs conflict. Country/language contradictions also block matching.
+5. Matching names, country, language, genres, or provider IDs from different providers alone are not sufficient. Weak or tied candidate matches remain separate and are recorded for review.
 
-If an incoming record's provider ID matches more than one candidate, matching remains unresolved and the record is preserved separately rather than selecting a candidate by order or metadata.
+Provider IDs are scoped to their provider; different IDs across providers do not prove different stations. Stream URLs, codecs, and bitrates describe stream offerings, not canonical station identity. Query tokens and URL fragments are ignored when comparing stream endpoint identity, but the original stream URLs are retained for playback. Where evidence is inconclusive, preserve each aggregate with its own station ID rather than silently merging or dropping it.
 
 ## Required next evidence
 
