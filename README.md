@@ -26,7 +26,7 @@ M3U/M3U8 parsing retains common EXTINF metadata (station IDs, country, language,
 
 When a provider changes its format beyond these known variants, update its adapter and add a fixture/regression test there. Do not change the BeastED output contract just to mirror an upstream API. Unknown or ambiguous data should be rejected or reported, not silently misclassified.
 
-## Durable provider state
+## Curated radio playlists\n\nThe `curated-radio` provider imports every discoverable M3U/M3U8 playlist from [deroverda/recommended-radio-streams](https://github.com/deroverda/recommended-radio-streams). The playlist filename is retained as a genre/category tag, while the original repository, path, playlist URL, entry index, title, and stream URL remain in source provenance. Retrieval and parse coverage use the same 80% safeguards as the other GitHub playlist providers; incomplete refreshes preserve the last-good snapshot.\n\nThe public iHeart export used by the previous BeastED client is not configured as a playable Radsync provider: its dataset redacts some stream URLs and can yield metadata-only records. Those records must not be turned into fabricated playback endpoints. iHeart parity therefore remains a separate decision until a lawful, usable stream source is identified.\n\n## Durable provider state
 
 The scheduled/manual refresh workflow checks out a dedicated `radsync-state` branch into a separate `state/` directory. Each enabled provider has its own versioned snapshot under `state/sources/`.
 
