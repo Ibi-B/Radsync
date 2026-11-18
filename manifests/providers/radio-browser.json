@@ -3,31 +3,45 @@
   "layoutVersion": 2,
   "format": "radsync-jsonl-zstd-v1",
   "source": "radio-browser",
-  "objectKey": "radsync/state/current/radio-browser/44198761794-5dd0107206a9/sha256/ed9ce90e398548cb42907ab227929450a2f06bfa192bb21d2037da4df6e480f7/active.jsonl.zst",
-  "sha256": "ed9ce90e398548cb42907ab227929450a2f06bfa192bb21d2037da4df6e480f7",
-  "compressedBytes": 169402,
+  "objectKey": "radsync/state/current/radio-browser/44280791159-62f42d2dc638/sha256/f8161648b11d83111ea061a9eae2072292a957af88805f6d9855331b5e66e1dd/active.jsonl.zst",
+  "sha256": "f8161648b11d83111ea061a9eae2072292a957af88805f6d9855331b5e66e1dd",
+  "compressedBytes": 169409,
   "stationCount": 998,
   "streamCount": 998,
-  "snapshotUpdatedAt": "2026-11-17T23:23:36.479547+00:00",
+  "snapshotUpdatedAt": "2026-11-18T09:59:04.801530+00:00",
   "anomalyBounds": {
     "minStationCount": 800,
     "maxStationDropRatio": 0.1,
     "minStreamCount": 800,
     "maxStreamDropRatio": 0.15
   },
-  "verifiedAt": "2026-11-17T23:27:53.722231+00:00",
+  "verifiedAt": "2026-11-18T10:04:52.240735+00:00",
   "previous": {
-    "objectKey": "radsync/state/previous/radio-browser/44198761794-5dd0107206a9/sha256/5030be6b1e730fa332f869fa5493754631c86ef74c0aecda2ccee593981fcdb4/previous.jsonl.zst",
-    "sha256": "5030be6b1e730fa332f869fa5493754631c86ef74c0aecda2ccee593981fcdb4",
-    "compressedBytes": 169172,
+    "objectKey": "radsync/state/previous/radio-browser/44280791159-62f42d2dc638/sha256/ed9ce90e398548cb42907ab227929450a2f06bfa192bb21d2037da4df6e480f7/previous.jsonl.zst",
+    "sha256": "ed9ce90e398548cb42907ab227929450a2f06bfa192bb21d2037da4df6e480f7",
+    "compressedBytes": 169402,
     "stationCount": 998,
     "streamCount": 998,
-    "snapshotUpdatedAt": "2026-11-17T22:56:50.268943+00:00",
+    "snapshotUpdatedAt": "2026-11-17T23:23:36.479547+00:00",
     "anomalyBounds": {
       "maxStationDropRatio": 0.1,
       "maxStreamDropRatio": 0.15,
       "minStationCount": 800,
       "minStreamCount": 800
     }
-  }
+  },
+  "rotationCleanup": [
+    {
+      "deleteKey": "radsync/state/current/radio-browser/44198761794-5dd0107206a9/sha256/ed9ce90e398548cb42907ab227929450a2f06bfa192bb21d2037da4df6e480f7/active.jsonl.zst",
+      "replacementKey": "radsync/state/previous/radio-browser/44280791159-62f42d2dc638/sha256/ed9ce90e398548cb42907ab227929450a2f06bfa192bb21d2037da4df6e480f7/previous.jsonl.zst",
+      "replacementRole": "previous",
+      "sha256": "ed9ce90e398548cb42907ab227929450a2f06bfa192bb21d2037da4df6e480f7"
+    },
+    {
+      "deleteKey": "radsync/state/previous/radio-browser/44198761794-5dd0107206a9/sha256/5030be6b1e730fa332f869fa5493754631c86ef74c0aecda2ccee593981fcdb4/previous.jsonl.zst",
+      "replacementKey": "radsync/state/archive/radio-browser/2026-11-18T10-01-43Z-44280791159-62f42d2dc638-5030be6b1e730fa332f869fa5493754631c86ef74c0aecda2ccee593981fcdb4.jsonl.zst",
+      "replacementRole": "archive",
+      "sha256": "5030be6b1e730fa332f869fa5493754631c86ef74c0aecda2ccee593981fcdb4"
+    }
+  ]
 }
