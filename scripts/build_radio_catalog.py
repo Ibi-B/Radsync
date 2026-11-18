@@ -481,18 +481,14 @@ def _station_identity_facts(station):
         for record in stream.get("sourceRecords", [])
         if isinstance(record, dict)
     )
+    # Use original playback URLs here. The diagnostic/provenance URL fields
+    # intentionally strip query data, which can include meaningful station IDs.
     endpoints = {
         key for key in (
             _identity_endpoint_key(stream.get("url"))
             for stream in station.get("streams", [])
         ) if key
     }
-    endpoints.update(
-        key for key in (
-            _identity_endpoint_key(item.get("streamUrl"))
-            for item in evidence if isinstance(item, dict)
-        ) if key
-    )
     websites = {
         value for value in (
             _normalize_identity_website(item.get("website"))
