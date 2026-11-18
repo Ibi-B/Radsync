@@ -69,6 +69,21 @@ async def diagnose(url: str, timeout_seconds: int) -> dict:
                 allow_redirects=True,
             ) as response:
                 body = await response.read()
+                try:
+                    # Match fetch_directory() exactly: aiohttp chooses the
+                    # response charset from Content-Type and decodes as text.
+                    xml_text = await response.text()
+                except UnicodeError as error:
+                    report["fetch"] = {
+                        "httpStatus": response.status,
+                        "finalUrl": str(response.url),
+                        "bytesReceived": len(body),
+                        "decodeErrorType": type(error).__name__,
+                        "decodeError": str(error)[:1000],
+                        "elapsedSeconds": round(time.monotonic() - started, 3),
+                    }
+                    return report
+
                 report["fetch"] = {
                     "httpStatus": response.status,
                     "finalUrl": str(response.url),
@@ -94,7 +109,7 @@ async def diagnose(url: str, timeout_seconds: int) -> dict:
                     return report
 
         try:
-            root = ET.fromstring(body)
+            root = ET.fromstring(xml_text)
         except ET.ParseError as error:
             report["xml"] = {
                 "parseError": str(error),
@@ -144,7 +159,7 @@ async def diagnose(url: str, timeout_seconds: int) -> dict:
         }
 
         # Exercise Radsync's real parser, not a second parser implementation.
-        parsed_records = parse_directory(body.decode("utf-8-sig", errors="replace"))
+        parsed_records = parse_directory(xml_text)
         report["parser"] = {
             "recordsReturned": len(parsed_records),
         }
