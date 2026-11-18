@@ -31,19 +31,5 @@
       "minStationCount": 35000,
       "minStreamCount": 35000
     }
-  },
-  "rotationCleanup": [
-    {
-      "deleteKey": "radsync/state/current/iprd/44361497509-dc32997c0c50/sha256/f933b360fdd203bdf53e57e31b8ddcc93fc2f0285ee7f87a3d2b8fdd5307b9d5/active.jsonl.zst",
-      "replacementKey": "radsync/state/previous/iprd/44362231549-1bbcc3b139d9/sha256/f933b360fdd203bdf53e57e31b8ddcc93fc2f0285ee7f87a3d2b8fdd5307b9d5/previous.jsonl.zst",
-      "replacementRole": "previous",
-      "sha256": "f933b360fdd203bdf53e57e31b8ddcc93fc2f0285ee7f87a3d2b8fdd5307b9d5"
-    },
-    {
-      "deleteKey": "radsync/state/previous/iprd/44361497509-dc32997c0c50/sha256/16508fb2c62d02180959875eda12ad5228f54da62cf35063f6c8697c596168dd/previous.jsonl.zst",
-      "replacementKey": "radsync/state/archive/iprd/2026-11-18T17-53-40Z-44362231549-1bbcc3b139d9-16508fb2c62d02180959875eda12ad5228f54da62cf35063f6c8697c596168dd.jsonl.zst",
-      "replacementRole": "archive",
-      "sha256": "16508fb2c62d02180959875eda12ad5228f54da62cf35063f6c8697c596168dd"
-    }
-  ]
+  }
 }
