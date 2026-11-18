@@ -4,6 +4,13 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 2 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "sources/**"
+      - "config/sources.json"
+      - ".github/workflows/refresh.yml"
 
 permissions:
   contents: read
