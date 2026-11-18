@@ -1538,7 +1538,62 @@ async def main(state_dir=Path("state"), snapshot_store: SnapshotStore | None = N
             group_id_slug = group_slug(group_id)
             path = directory / f"{group_id_slug}.json"
             path.write_text(json.dumps({"id": group_id_slug, "version": version, "stations": group_stations}, ensure_ascii=False), encoding="utf-8")
-            items.append({"id": group_id_slug, "name": group_id, "count": len(group_stations), "url": f"{directory.name}/{group_id_slug}.json"})
+            item = {
+                "id": group_id_slug,
+                "name": group_id,
+                "count": len(group_stations),
+                "url": f"{directory.name}/{group_id_slug}.json",
+            }
+
+            # Country groups are the app's bounded browsing surface. Keep the
+            # original full-group file for compatibility, while publishing
+            # small immutable pages so clients never need to download the
+            # entire global catalogue (or a very large country group).
+            if directory.name == "countries":
+                page_size = 100
+                ordered_stations = sorted(
+                    group_stations,
+                    key=lambda station: (
+                        str(station.get("name") or "").casefold(),
+                        str(station.get("stationUuid") or ""),
+                    ),
+                )
+                pages = []
+                page_dir = directory / group_id_slug
+                page_dir.mkdir(parents=True, exist_ok=True)
+                for page_index, start in enumerate(range(0, len(ordered_stations), page_size)):
+                    page_stations = ordered_stations[start:start + page_size]
+                    page_name = f"page-{page_index:05d}.json"
+                    page_path = page_dir / page_name
+                    page_path.write_text(
+                        json.dumps({
+                            "id": group_id_slug,
+                            "version": version,
+                            "offset": start,
+                            "total": len(ordered_stations),
+                            "stations": page_stations,
+                        }, ensure_ascii=False),
+                        encoding="utf-8",
+                    )
+                    pages.append({
+                        "index": page_index,
+                        "count": len(page_stations),
+                        "url": f"{directory.name}/{group_id_slug}/{page_name}",
+                    })
+                display_name = next(
+                    (str(station.get("country") or "").strip()
+                     for station in ordered_stations
+                     if str(station.get("country") or "").strip()),
+                    str(group_id),
+                )
+                item.update({
+                    "label": display_name,
+                    "pageSize": page_size,
+                    "pageCount": len(pages),
+                    "pages": pages,
+                })
+
+            items.append(item)
         return items
 
     genre_groups = {}
