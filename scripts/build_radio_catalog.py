@@ -121,10 +121,59 @@ def make_stream(source, url, codec="", bitrate=0, priority=50, source_station_id
     }
 
 
+def _metadata_key(value):
+    return re.sub(r"[^a-z0-9]", "", str(value or "").casefold())
+
+
+def _metadata_value(record, aliases):
+    """Find a selected station metadata field in provider or playlist metadata."""
+    wanted = {_metadata_key(alias) for alias in aliases}
+    containers = [record]
+    for field in ("raw_metadata", "rawMetadata", "attributes", "metadata"):
+        value = record.get(field)
+        if isinstance(value, dict):
+            containers.append(value)
+    for container in containers:
+        for key, value in container.items():
+            if _metadata_key(key) in wanted and value not in (None, ""):
+                if isinstance(value, (list, tuple, set)):
+                    value = next((item for item in value if item not in (None, "")), "")
+                if isinstance(value, (str, int, float)):
+                    return str(value).strip()
+    return ""
+
+
+def _normalize_identity_label(value):
+    return " ".join(re.findall(r"[a-z0-9]+", str(value or "").casefold()))
+
+
+def _normalize_identity_website(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    if "://" not in raw:
+        raw = "https://" + raw
+    try:
+        parsed = urlsplit(raw)
+        if parsed.scheme.casefold() not in ("http", "https") or not parsed.hostname:
+            return ""
+        host = parsed.hostname.casefold().removeprefix("www.")
+        port = parsed.port
+        if port and not (
+            (parsed.scheme.casefold() == "http" and port == 80)
+            or (parsed.scheme.casefold() == "https" and port == 443)
+        ):
+            host = f"{host}:{port}"
+        path = re.sub(r"/+$", "", parsed.path or "")
+        return f"{host}{path}".casefold()
+    except ValueError:
+        return ""
+
+
 def make_identity_evidence(source, record=None, provider_record_id=None, source_url=None,
                            playlist_path=None, entry_index=None, raw_extinf=None,
                            stream_url=None, codec=None, bitrate=None):
-    """Keep a small, private evidence record for failed identity diagnostics."""
+    """Keep private, selected identity evidence for reconciliation and diagnostics."""
     record = record if isinstance(record, dict) else {}
     raw_name = get_value(record, "name")
     provider_uuid = (
@@ -138,6 +187,7 @@ def make_identity_evidence(source, record=None, provider_record_id=None, source_
         tags = [as_text(tag) for tag in tags if as_text(tag)]
     else:
         tags = []
+
     def safe_url(value):
         try:
             parsed = urlsplit(str(value or "").strip())
@@ -146,6 +196,22 @@ def make_identity_evidence(source, record=None, provider_record_id=None, source_
             return parsed._replace(query="", fragment="").geturl()[:500]
         except ValueError:
             return str(value or "")[:500]
+
+    raw_metadata = (
+        record.get("raw_metadata") if isinstance(record.get("raw_metadata"), dict)
+        else record.get("attributes") if isinstance(record.get("attributes"), dict)
+        else {}
+    )
+    website = _metadata_value(record, (
+        "homepage", "home_page", "website", "web_site", "official_website",
+        "station_website", "site_url",
+    ))
+    call_sign = _metadata_value(record, (
+        "callsign", "call_sign", "call sign", "station_callsign",
+        "station_call_sign", "broadcast_call_sign",
+    ))
+    city = _metadata_value(record, ("city", "town", "municipality", "locality"))
+    region = _metadata_value(record, ("region", "state", "province", "administrative_area"))
     return {
         "source": str(source or ""),
         "providerStationUuid": str(provider_uuid or ""),
@@ -162,7 +228,11 @@ def make_identity_evidence(source, record=None, provider_record_id=None, source_
         "originalTitle": str(record.get("original_title") or raw_name or "")[:300],
         "originalUrl": safe_url(record.get("original_url") or stream_url or get_value(record, "url")),
         "playlistRepository": str(record.get("playlist_repository") or "")[:200],
-        "rawMetadata": record.get("raw_metadata") if isinstance(record.get("raw_metadata"), dict) else {},
+        "website": _normalize_identity_website(website),
+        "callSign": _normalize_identity_label(call_sign),
+        "city": _normalize_identity_label(city),
+        "region": _normalize_identity_label(region),
+        "rawMetadata": raw_metadata,
         "ingestedAt": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -345,26 +415,187 @@ def merge_station(target, incoming):
 
 
 def stations_compatible(existing, incoming):
+    """Reject contradictory country/language fields without over-trusting labels."""
     for field in ("countryCode", "language"):
         left = str(existing.get(field) or "").strip().casefold()
         right = str(incoming.get(field) or "").strip().casefold()
         if left and right and left != right:
             return False
-    left = str(existing.get("country") or "").strip().casefold()
-    right = str(incoming.get("country") or "").strip().casefold()
-    return not (left and right and left != right)
+
+    left_code = str(existing.get("countryCode") or "").strip().casefold()
+    right_code = str(incoming.get("countryCode") or "").strip().casefold()
+    left_country = str(existing.get("country") or "").strip().casefold()
+    right_country = str(incoming.get("country") or "").strip().casefold()
+    # A matching country code is more reliable than inconsistent display labels.
+    if not (left_code and right_code and left_code == right_code):
+        if left_country and right_country and left_country != right_country:
+            return False
+    return True
+
+
+def _identity_endpoint_key(value):
+    """Normalize a stream endpoint for matching, excluding volatile query/fragment data."""
+    try:
+        parsed = urlsplit(str(value or "").strip())
+        if parsed.scheme.casefold() not in ("http", "https") or not parsed.hostname:
+            return ""
+        host = parsed.hostname.casefold()
+        port = parsed.port
+        if port and not (
+            (parsed.scheme.casefold() == "http" and port == 80)
+            or (parsed.scheme.casefold() == "https" and port == 443)
+        ):
+            host = f"{host}:{port}"
+        path = re.sub(r"/+$", "", parsed.path or "") or "/"
+        return f"{parsed.scheme.casefold()}://{host}{path}"
+    except ValueError:
+        return ""
+
+
+def _station_identity_facts(station):
+    evidence = list(station.get("_identityEvidence") or [])
+    evidence.extend(
+        record
+        for stream in station.get("streams", [])
+        for record in stream.get("sourceRecords", [])
+        if isinstance(record, dict)
+    )
+    endpoints = {
+        key for key in (
+            _identity_endpoint_key(stream.get("url"))
+            for stream in station.get("streams", [])
+        ) if key
+    }
+    endpoints.update(
+        key for key in (
+            _identity_endpoint_key(item.get("streamUrl"))
+            for item in evidence if isinstance(item, dict)
+        ) if key
+    )
+    websites = {
+        value for value in (
+            _normalize_identity_website(item.get("website"))
+            for item in evidence if isinstance(item, dict)
+        ) if value
+    }
+    call_signs = {
+        value for value in (
+            _normalize_identity_label(item.get("callSign"))
+            for item in evidence if isinstance(item, dict)
+        ) if value
+    }
+    cities = {
+        value for value in (
+            _normalize_identity_label(item.get("city"))
+            for item in evidence if isinstance(item, dict)
+        ) if value
+    }
+    regions = {
+        value for value in (
+            _normalize_identity_label(item.get("region"))
+            for item in evidence if isinstance(item, dict)
+        ) if value
+    }
+    tags = {
+        value for value in (
+            _normalize_identity_label(tag)
+            for tag in list(station.get("tags") or []) + [
+                tag for item in evidence if isinstance(item, dict)
+                for tag in (item.get("tags") or [])
+            ]
+        ) if value
+    }
+    return {
+        "endpoints": endpoints,
+        "websites": websites,
+        "callSigns": call_signs,
+        "cities": cities,
+        "regions": regions,
+        "tags": tags,
+    }
+
+
+def _cross_provider_identity_score(existing, incoming):
+    """Score strong cross-provider evidence; names alone never authorize a merge."""
+    if normalize_name(existing.get("name", "")) != normalize_name(incoming.get("name", "")):
+        return None
+    if not stations_compatible(existing, incoming):
+        return None
+
+    left = _station_identity_facts(existing)
+    right = _station_identity_facts(incoming)
+
+    shared_endpoints = left["endpoints"] & right["endpoints"]
+    shared_websites = left["websites"] & right["websites"]
+    shared_call_signs = left["callSigns"] & right["callSigns"]
+
+    # A conflict in both known call signs is a strong indication of different
+    # stations, even when a provider has reused a relay endpoint.
+    if left["callSigns"] and right["callSigns"] and not shared_call_signs:
+        return None
+
+    score = 3  # Exact normalized station name is a necessary baseline.
+    has_anchor = False
+    if shared_endpoints:
+        score += 6
+        has_anchor = True
+    if shared_call_signs:
+        score += 6
+        has_anchor = True
+    if shared_websites:
+        score += 5
+        has_anchor = True
+
+    country_code_left = str(existing.get("countryCode") or "").strip().casefold()
+    country_code_right = str(incoming.get("countryCode") or "").strip().casefold()
+    country_left = str(existing.get("country") or "").strip().casefold()
+    country_right = str(incoming.get("country") or "").strip().casefold()
+    language_left = str(existing.get("language") or "").strip().casefold()
+    language_right = str(incoming.get("language") or "").strip().casefold()
+
+    matched_context = False
+    if country_code_left and country_code_right and country_code_left == country_code_right:
+        score += 3
+        matched_context = True
+    elif country_left and country_right and country_left == country_right:
+        score += 2
+        matched_context = True
+    if language_left and language_right and language_left == language_right:
+        score += 1
+        matched_context = True
+    if left["cities"] & right["cities"]:
+        score += 1
+    if left["regions"] & right["regions"]:
+        score += 1
+    if left["tags"] & right["tags"]:
+        score += 1
+
+    # A shared endpoint, official website, or call sign is required. Require
+    # matching geography/language too, unless two independent station anchors
+    # (website + call sign) agree. Generic names and broad genre tags alone
+    # must never combine different stations.
+    independent_anchors = bool(shared_websites and shared_call_signs)
+    if not has_anchor or not (matched_context or independent_anchors):
+        return None
+    return score if score >= 9 else None
 
 
 def find_station_match(candidates, incoming):
-    """Match only when both aggregates share a provider-qualified station ID.
+    """Prefer exact provider IDs, then sufficiently strong cross-provider evidence.
 
-    Normalized name and compatible location/language narrow the candidate set;
-    they are not positive identity evidence. Stream URLs, codecs, and bitrates
-    describe stream variants, not station identity. If no exact provider ID is
-    shared, the incoming aggregate must remain separate.
+    Provider IDs are local to each source. When they differ, matching exact
+    normalized station names plus shared endpoint/site/call-sign evidence and
+    compatible geography can still identify one canonical station. Codec,
+    bitrate, and URL differences are stream variants, not evidence of different
+    stations. Ambiguous or weak matches remain separate.
     """
-    compatible = [station for station in candidates if stations_compatible(station, incoming)]
-    if not compatible:
+    incoming_name = normalize_name(incoming.get("name", ""))
+    candidates = [
+        station for station in candidates
+        if normalize_name(station.get("name", "")) == incoming_name
+        and stations_compatible(station, incoming)
+    ]
+    if not candidates:
         return None
 
     incoming_ids = {
@@ -372,20 +603,31 @@ def find_station_match(candidates, incoming):
         for source, ids in _source_ids_for_station(incoming).items()
         for source_id in ids
     }
-    if not incoming_ids:
-        return None
+    if incoming_ids:
+        exact_matches = [
+            station for station in candidates
+            if incoming_ids.intersection(
+                (source, source_id)
+                for source, ids in _source_ids_for_station(station).items()
+                for source_id in ids
+            )
+        ]
+        if len(exact_matches) == 1:
+            return exact_matches[0]
+        if len(exact_matches) > 1:
+            return None
 
-    exact_matches = [
-        station for station in compatible
-        if incoming_ids.intersection(
-            (source, source_id)
-            for source, ids in _source_ids_for_station(station).items()
-            for source_id in ids
-        )
+    scored = [
+        (score, station)
+        for station in candidates
+        if (score := _cross_provider_identity_score(station, incoming)) is not None
     ]
-    # A shared ID that appears in more than one candidate is itself ambiguous.
-    # Do not choose one based on ordering, URL, codec, bitrate, or metadata.
-    return exact_matches[0] if len(exact_matches) == 1 else None
+    if not scored:
+        return None
+    scored.sort(key=lambda item: item[0], reverse=True)
+    if len(scored) > 1 and scored[0][0] - scored[1][0] < 2:
+        return None
+    return scored[0][1]
 
 
 def _canonical_identity_base(station):
@@ -452,6 +694,10 @@ def _canonical_identity_disambiguator(station):
             "originalTitle": str(item.get("originalTitle") or ""),
             "originalUrl": _stable_identity_url(item.get("originalUrl")),
             "streamUrl": _stable_identity_url(item.get("streamUrl")),
+            "website": _normalize_identity_website(item.get("website")),
+            "callSign": _normalize_identity_label(item.get("callSign")),
+            "city": _normalize_identity_label(item.get("city")),
+            "region": _normalize_identity_label(item.get("region")),
             "codec": str(item.get("codec") or "").strip().casefold(),
             "bitrate": str(item.get("bitrate") or 0),
         }
