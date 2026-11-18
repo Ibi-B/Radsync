@@ -113,5 +113,19 @@
       "minStreamCount": 8,
       "maxStreamDropRatio": 0.15
     }
+  },
+  "curated_radio": {
+    "enabled": true,
+    "repoApiUrl": "https://api.github.com/repos/deroverda/recommended-radio-streams/git/trees/main?recursive=1",
+    "rawBaseUrl": "https://raw.githubusercontent.com/deroverda/recommended-radio-streams/main/",
+    "categoryFromPath": true,
+    "priority": 88,
+    "anomalyBounds": {
+      "minStationCount": 1,
+      "maxStationDropRatio": 0.1,
+      "minStreamCount": 1,
+      "maxStreamDropRatio": 0.15,
+      "minRecordProductionCoverage": 0.8
+    }
   }
 }

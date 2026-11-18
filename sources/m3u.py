@@ -10,6 +10,7 @@ def parse_m3u(text: str, base_url: str = ""):
     stations = []
     current = None
     entry_index = 0
+    playlist_group = ""
 
     for raw_line in (text or "").lstrip("\ufeff").splitlines():
         line = raw_line.strip()
@@ -31,8 +32,11 @@ def parse_m3u(text: str, base_url: str = ""):
                 "language": attributes.get("tvg-language", ""),
                 "genres": [attributes.get("group-title", "")] if attributes.get("group-title") else [],
                 "logo": attributes.get("tvg-logo", ""), "station_id": attributes.get("tvg-id", ""),
+                "playlist_group": playlist_group,
             }
             entry_index += 1
+        elif line.casefold().startswith("# group:"):
+            playlist_group = line.split(":", 1)[1].strip()
         elif line.startswith("#"):
             continue
         elif current is not None:
