@@ -20,10 +20,11 @@ class CatalogValidationTests(unittest.TestCase):
                 "name": "Example Radio",
                 "streams": [{
                     "source": "preferred",
-                    "sources": ["preferred"],
+                    "sources": ["preferred", "secondary-provider"],
                     "url": "https://radio.example/live",
                     "qualityScore": 90,
                 }],
+                "sources": ["preferred", "secondary-provider"],
                 "defaultStreamIndex": 0,
                 "defaultSource": "preferred",
                 "sourceGroups": [{"source": "preferred", "streamIndexes": [0]}],
