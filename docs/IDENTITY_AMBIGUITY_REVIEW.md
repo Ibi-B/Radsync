@@ -32,19 +32,19 @@ This diagnostic predates the source-preservation PR. It contains no provider sta
 - All 12 groups contain at least one repeated source/endpoint fingerprint.
 - The evidence strongly suggests redundant **source observations** exist, but that is not the same as proving duplicate **station identities**.
 - Magic Radio, Radio Panamericana, Capital Radio, Delta FM, Radio Radio, and J-Pop Powerplay have multiple exact URL strings that must remain represented.
-- J-Club Powerplay HipHop and GHERLA have cross-provider observations of the same exact URL; this is endpoint evidence, not sufficient station-identity proof.
+- J-Club Powerplay HipHop and GHERLA have cross-provider observations of the same exact URL. The historical diagnostic has no country, language, call-sign, or website evidence, so these records still do not meet the current cross-provider confidence gate.
 - No group has usable provider station IDs or playlist-entry provenance in this historical diagnostic. No canonical merge should be authorized from this file alone.
 
 ## Catalog identity policy
 
 An unresolved identity collision is **not a reason to block the catalogue build or discard a record**.
 
-- Merge source observations into alternate streams only when reliable provider identity supports that relationship. A matching station name or stream URL alone is not proof of station identity.
+- Merge source observations into alternate streams when either the provider-qualified station ID matches or a high-confidence cross-provider match is established by exact normalized name, compatible geography/language, and a shared stream endpoint, official website, or call sign. Names, genres, or URLs in isolation are not sufficient.
 - When provider IDs or playlist-entry provenance distinguish aggregates, use that stable evidence to generate separate deterministic station IDs.
 - When two aggregates remain completely indistinguishable, retain both with unique occurrence-qualified IDs and emit a diagnostic. This preserves the source record count without claiming the two records are the same station.
 - The occurrence suffix is a deterministic fallback for otherwise identical rows; without an upstream ID or entry key, no system can reliably tell which physical station an identical row represents after the upstream order changes. The fallback preserves both rows rather than silently merging or deleting either one.
 
-The intended trade-off is explicit: **a possible duplicate is safer than losing a potentially different station**. A later evidence-based reconciliation can merge records when provider identity proves they are the same canonical station.
+The intended trade-off is explicit: **a possible duplicate is safer than losing a potentially different station**. Strong cross-provider evidence can establish a canonical station even when provider IDs differ; otherwise, preserve the candidates for later review.
 
 ## Automatic matching gate
 
