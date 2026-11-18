@@ -120,6 +120,25 @@ class CatalogAggregationTests(unittest.TestCase):
             {source for stream in first["streams"] for source in stream["sources"]},
         )
 
+    def test_tied_cross_provider_candidates_remain_unmerged(self):
+        website = "https://example-radio.test/"
+        first = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-a", "https://a.example/live", source_station_id="a-1")],
+            identity_evidence=[{"source": "provider-a", "website": website}],
+        )
+        second = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-b", "https://b.example/live", source_station_id="b-1")],
+            identity_evidence=[{"source": "provider-b", "website": website}],
+        )
+        incoming = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-c", "https://c.example/live", source_station_id="c-1")],
+            identity_evidence=[{"source": "provider-c", "website": website}],
+        )
+        self.assertIsNone(find_station_match([first, second], incoming))
+
     def test_station_selector_query_parameters_prevent_false_endpoint_match(self):
         first = make_station(
             "Example Radio", country="GB", country_code="GB", language="English",
