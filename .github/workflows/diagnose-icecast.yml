@@ -1,0 +1,43 @@
+name: Diagnose Icecast feed
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out Radsync main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Diagnose Icecast Yellow Pages response and collection stages
+        id: diagnose
+        run: |
+          set -o pipefail
+          python -m scripts.diagnose_icecast --output icecast-diagnostic.json
+
+      - name: Upload Icecast diagnostic report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: icecast-diagnostic-${{ github.run_id }}
+          path: icecast-diagnostic.json
+          if-no-files-found: warn
+          retention-days: 7
