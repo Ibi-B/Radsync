@@ -72,11 +72,23 @@ def refresh_station_sources(station):
     station["streams"].sort(key=stream_sort_key, reverse=True)
     station["defaultStreamIndex"] = 0 if station["streams"] else None
     station["defaultSource"] = station["streams"][0]["source"] if station["streams"] else None
+
+    # A stream may be observed by several providers. Keep all of those sources
+    # on the stream and station, but assign each stream index to exactly one
+    # source group: its selected/primary stream source. This preserves a true
+    # partition of stream indexes for the published catalogue validator.
     grouped = {}
+    all_sources = set()
     for index, stream in enumerate(station["streams"]):
-        for source in stream.get("sources", [stream["source"]]):
-            grouped.setdefault(source, []).append(index)
-    station["sources"] = list(grouped)
+        sources = stream.get("sources") or [stream.get("source")]
+        all_sources.update(source for source in sources if source)
+        primary_source = stream.get("source") or next(
+            (source for source in sources if source), None
+        )
+        if primary_source:
+            grouped.setdefault(primary_source, []).append(index)
+
+    station["sources"] = sorted(all_sources)
     station["sourceGroups"] = [
         {"source": source, "streamIndexes": indexes}
         for source, indexes in sorted(grouped.items())

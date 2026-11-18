@@ -338,15 +338,20 @@ class CatalogAggregationTests(unittest.TestCase):
         self.assertIsNone(station["defaultSource"])
         self.assertIsNone(station["defaultStreamIndex"])
 
-    def test_duplicate_stream_url_is_not_duplicated(self):
+    def test_duplicate_stream_url_is_not_duplicated_and_has_one_primary_group(self):
         station = self.station("source-a", "https://same.example/live", 80)
         merge_station(station, self.station("source-b", "https://same.example/live", 70))
         self.assertEqual(1, len(station["streams"]))
         self.assertEqual(["source-a", "source-b"], station["sources"])
         self.assertEqual(["source-a", "source-b"], station["streams"][0]["sources"])
-        grouped_sources = {group["source"] for group in station["sourceGroups"]}
-        self.assertEqual({"source-a", "source-b"}, grouped_sources)
-        self.assertTrue(all(group["streamIndexes"] == [0] for group in station["sourceGroups"]))
+        self.assertEqual(
+            [{"source": "source-a", "streamIndexes": [0]}],
+            station["sourceGroups"],
+        )
+        self.assertEqual(
+            {0},
+            {index for group in station["sourceGroups"] for index in group["streamIndexes"]},
+        )
 
     def test_long_group_names_are_bounded_and_collision_resistant(self):
         prefix = "00s-hits-nostalgic-pop-" * 20
