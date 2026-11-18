@@ -96,41 +96,98 @@ class CatalogAggregationTests(unittest.TestCase):
         self.assertEqual(1, len(first["streams"]))
         self.assertEqual(1, len(second["streams"]))
 
-    def test_identical_stream_endpoint_does_not_override_distinct_provider_ids(self):
-        url = "https://shared.example/live"
+    def test_cross_provider_shared_endpoint_and_location_match_one_station(self):
+        url = "https://shared.example/live?provider-token=one"
         first = make_station(
-            "Example Radio", country="GB", country_code="GB", language="English",
-            streams=[make_stream("provider-a", url, priority=80, source_station_id="a-1")],
+            "Example Radio", country="United Kingdom", country_code="GB", language="English",
+            streams=[make_stream("radio-browser", url, codec="AAC", bitrate=128, priority=80, source_station_id="rb-1")],
         )
         second = make_station(
-            "Example Radio", country="GB", country_code="GB", language="English",
-            streams=[make_stream("provider-b", url, priority=80, source_station_id="b-1")],
+            "Example Radio", country="UK", country_code="GB", language="English",
+            streams=[make_stream("airwavedb", "https://shared.example/live?provider-token=two", codec="MP3", bitrate=64, priority=70, source_station_id="aw-2")],
         )
-        self.assertIsNone(find_station_match([first], second))
+        self.assertIs(first, find_station_match([first], second))
+        merge_station(first, second)
+        self.assertEqual(1, len(first["streams"]))
+        self.assertEqual({"radio-browser", "airwavedb"}, set(first["streams"][0]["sources"]))
+        self.assertEqual(
+            {"radio-browser", "airwavedb"},
+            set(first["streams"][0]["providerSources"]),
+        )
 
-    def test_genuine_duplicate_keeps_all_streams_under_one_identity(self):
+    def test_cross_provider_same_call_sign_and_website_merge_different_streams(self):
         first = make_station(
             "Example Radio", country="GB", country_code="GB", language="English",
+            tags=["news", "talk"],
             streams=[make_stream(
                 "radio-browser", "https://one.example/live", codec="MP3",
                 bitrate=64, priority=90, source_station_id="rb-1",
             )],
+            identity_evidence=[{
+                "source": "radio-browser", "website": "https://example-radio.co.uk/",
+                "callSign": "WEXM", "city": "London", "region": "England",
+            }],
         )
         second = make_station(
-            "Example Radio", country="GB", country_code="GB", language="English",
+            "Example Radio", country="United Kingdom", country_code="GB", language="English",
+            tags=["news"],
             streams=[make_stream(
-                "radio-browser", "https://two.example/live", codec="AAC",
-                bitrate=128, priority=80, source_station_id="rb-1",
+                "airwavedb", "https://two.example/live", codec="AAC",
+                bitrate=128, priority=80, source_station_id="aw-2",
             )],
+            identity_evidence=[{
+                "source": "airwavedb", "website": "http://www.example-radio.co.uk",
+                "callSign": "W-EXM", "city": "London", "region": "England",
+            }],
         )
         self.assertIs(first, find_station_match([first], second))
         merge_station(first, second)
         assign_canonical_station_ids([first])
         self.assertEqual(2, len(first["streams"]))
         self.assertTrue(first["stationUuid"])
-        self.assertEqual(0, first["defaultStreamIndex"])
         self.assertEqual({"MP3", "AAC"}, {stream["codec"] for stream in first["streams"]})
         self.assertEqual({64, 128}, {stream["bitrate"] for stream in first["streams"]})
+        self.assertEqual({"radio-browser", "airwavedb"}, set(first["sources"]))
+
+    def test_same_name_country_language_and_genres_without_identity_anchor_stay_separate(self):
+        first = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            tags=["news", "pop"],
+            streams=[make_stream("provider-a", "https://one.example/live", source_station_id="a-1")],
+        )
+        second = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            tags=["news", "pop"],
+            streams=[make_stream("provider-b", "https://two.example/live", source_station_id="b-1")],
+        )
+        self.assertIsNone(find_station_match([first], second))
+
+    def test_shared_endpoint_with_conflicting_call_signs_stays_separate(self):
+        url = "https://relay.example/live"
+        first = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-a", url, source_station_id="a-1")],
+            identity_evidence=[{"source": "provider-a", "callSign": "WAAA"}],
+        )
+        second = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-b", url, source_station_id="b-1")],
+            identity_evidence=[{"source": "provider-b", "callSign": "WBBB"}],
+        )
+        self.assertIsNone(find_station_match([first], second))
+
+    def test_shared_website_and_country_language_can_match_different_stream_urls(self):
+        first = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-a", "https://one.example/live", source_station_id="a-1")],
+            identity_evidence=[{"source": "provider-a", "website": "https://example.org"}],
+        )
+        second = make_station(
+            "Example Radio", country="United Kingdom", country_code="GB", language="English",
+            streams=[make_stream("provider-b", "https://two.example/live", source_station_id="b-1")],
+            identity_evidence=[{"source": "provider-b", "website": "http://www.example.org/"}],
+        )
+        self.assertIs(first, find_station_match([first], second))
 
     def test_indistinguishable_aggregates_are_preserved_with_distinct_ids(self):
         first = make_station(
