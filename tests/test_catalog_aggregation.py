@@ -97,14 +97,14 @@ class CatalogAggregationTests(unittest.TestCase):
         self.assertEqual(1, len(second["streams"]))
 
     def test_cross_provider_endpoint_equivalence_ignores_tokens_but_keeps_urls(self):
-        url = "https://shared.example/live?provider-token=one"
+        url = "https://shared.example/live?provider-token=one&bitrate=128"
         first = make_station(
             "Example Radio", country="United Kingdom", country_code="GB", language="English",
             streams=[make_stream("radio-browser", url, codec="AAC", bitrate=128, priority=80, source_station_id="rb-1")],
         )
         second = make_station(
             "Example Radio", country="UK", country_code="GB", language="English",
-            streams=[make_stream("airwavedb", "https://shared.example/live?provider-token=two", codec="MP3", bitrate=64, priority=70, source_station_id="aw-2")],
+            streams=[make_stream("airwavedb", "https://shared.example/live?provider-token=two&bitrate=64", codec="MP3", bitrate=64, priority=70, source_station_id="aw-2")],
         )
         self.assertIs(first, find_station_match([first], second))
         merge_station(first, second)
@@ -112,13 +112,24 @@ class CatalogAggregationTests(unittest.TestCase):
         # playback URLs are retained rather than silently rewriting either.
         self.assertEqual(2, len(first["streams"]))
         self.assertEqual(
-            {url, "https://shared.example/live?provider-token=two"},
+            {url, "https://shared.example/live?provider-token=two&bitrate=64"},
             {stream["url"] for stream in first["streams"]},
         )
         self.assertEqual(
             {"radio-browser", "airwavedb"},
             {source for stream in first["streams"] for source in stream["sources"]},
         )
+
+    def test_station_selector_query_parameters_prevent_false_endpoint_match(self):
+        first = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-a", "https://shared.example/live?station=one", source_station_id="a-1")],
+        )
+        second = make_station(
+            "Example Radio", country="GB", country_code="GB", language="English",
+            streams=[make_stream("provider-b", "https://shared.example/live?station=two", source_station_id="b-1")],
+        )
+        self.assertIsNone(find_station_match([first], second))
 
     def test_cross_provider_same_call_sign_and_website_merge_different_streams(self):
         first = make_station(
