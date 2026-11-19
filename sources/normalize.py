@@ -12,6 +12,12 @@ ALIASES = {
     "codec": ("codec", "format", "audio_codec", "audioCodec", "mime", "content_type"),
     "bitrate": ("bitrate", "bit_rate", "bitRate", "kbps", "quality"),
     "id": ("id", "uuid", "stationuuid", "stationUuid", "station_id", "stationId", "station_uuid", "channel_id", "channelId"),
+    "artwork": ("artworkUrl", "artwork_url", "logo", "logo_url", "logoUrl", "tvg-logo", "favicon", "image", "image_url", "imageUrl", "icon", "icon_url"),
+    "website": ("websiteUrl", "website_url", "homepage", "home_page", "website", "web_site", "official_website", "station_website", "site_url"),
+    "description": ("description", "summary", "about", "station_description", "slogan", "tagline"),
+    "call_sign": ("callsign", "call_sign", "call sign", "station_callsign", "station_call_sign", "broadcast_call_sign"),
+    "city": ("city", "town", "municipality", "locality"),
+    "region": ("region", "state", "province", "administrative_area"),
 }
 
 
@@ -87,8 +93,14 @@ def normalize_record(record):
     if not name or not url:
         return None
 
+    nested_metadata = record.get("metadata") if isinstance(record.get("metadata"), Mapping) else {}
+    raw_metadata = record.get("raw_metadata") if isinstance(record.get("raw_metadata"), Mapping) else {}
+    attributes = record.get("attributes") if isinstance(record.get("attributes"), Mapping) else {}
+
     def metadata(field, default=None):
-        return get_value(record, field) or get_value(nested_station, field) or default
+        return (get_value(record, field) or get_value(nested_station, field)
+                or get_value(nested_metadata, field) or get_value(raw_metadata, field)
+                or get_value(attributes, field) or default)
 
     return {
         "name": name,
@@ -100,4 +112,10 @@ def normalize_record(record):
         "codec": as_text(get_value(record, "codec") or get_value(nested_stream, "codec")),
         "bitrate": get_value(record, "bitrate") or get_value(nested_stream, "bitrate", 0),
         "sourceStationId": as_text(get_value(record, "id") or get_value(nested_station, "id")),
+        "artworkUrl": as_text(metadata("artwork")),
+        "websiteUrl": as_text(metadata("website")),
+        "description": as_text(metadata("description")),
+        "callSign": as_text(metadata("call_sign")),
+        "city": as_text(metadata("city")),
+        "region": as_text(metadata("region")),
     }

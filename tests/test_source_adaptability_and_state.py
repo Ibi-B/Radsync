@@ -33,11 +33,23 @@ class SourceNormalizationTests(unittest.TestCase):
             "genres": [{"name": "Jazz"}, "News"],
             "bitRate": "192",
             "stationUuid": "source-123",
+            "favicon": "https://cdn.example/logo.png",
+            "homepage": "https://example.test/",
+            "description": "Local news and music",
+            "call_sign": "WEXM",
+            "city": "Stockholm",
+            "region": "Stockholm County",
         })
         self.assertEqual("Example Radio", record["name"])
         self.assertEqual("GB", record["countryCode"])
         self.assertEqual(["Jazz", "News"], record["tags"])
         self.assertEqual("source-123", record["sourceStationId"])
+        self.assertEqual("https://cdn.example/logo.png", record["artworkUrl"])
+        self.assertEqual("https://example.test/", record["websiteUrl"])
+        self.assertEqual("Local news and music", record["description"])
+        self.assertEqual("WEXM", record["callSign"])
+        self.assertEqual("Stockholm", record["city"])
+        self.assertEqual("Stockholm County", record["region"])
 
     def test_nested_station_and_stream_objects_are_supported(self):
         record = normalize_record({
