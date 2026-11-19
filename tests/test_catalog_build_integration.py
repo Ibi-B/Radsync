@@ -33,6 +33,8 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
             "tags": "news",
             "stationuuid": "rb-1",
             "homepage": "https://example-radio.test/",
+            "favicon": "https://cdn.example.test/example-radio.png",
+            "description": "Example station description",
             "call_sign": "WEXM",
             "url_resolved": "https://radio-browser.example/live",
             "codec": "MP3",
@@ -82,6 +84,10 @@ class CatalogueBuildIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 station = payload["stations"][0]
                 self.assertEqual(2, len(station["streams"]))
                 self.assertEqual("airwavedb", station["defaultSource"])
+                self.assertEqual("https://cdn.example.test/example-radio.png", station["artworkUrl"])
+                self.assertEqual("https://example-radio.test/", station["websiteUrl"])
+                self.assertEqual("Example station description", station["description"])
+                self.assertEqual("WEXM", station["callSign"])
 
                 # BeastED can page a selected country without downloading the
                 # full 160k+ station catalogue or an unbounded country payload.
