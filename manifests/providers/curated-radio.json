@@ -3,12 +3,12 @@
   "layoutVersion": 2,
   "format": "radsync-jsonl-zstd-v1",
   "source": "curated-radio",
-  "objectKey": "radsync/state/current/curated-radio/44365464391-b0b62ffc0d88/sha256/a18390e968b74576e08a7becf7326a39dde05e6b9f2b83ab1e0be75044e237fe/active.jsonl.zst",
-  "sha256": "a18390e968b74576e08a7becf7326a39dde05e6b9f2b83ab1e0be75044e237fe",
-  "compressedBytes": 35782,
+  "objectKey": "radsync/state/current/curated-radio/44486235682-ec1312ee96d8/sha256/4109df6d3839eecac5b247a8532b8ffacc1b561250e653efe1d5aebe4ce09243/active.jsonl.zst",
+  "sha256": "4109df6d3839eecac5b247a8532b8ffacc1b561250e653efe1d5aebe4ce09243",
+  "compressedBytes": 35937,
   "stationCount": 469,
   "streamCount": 469,
-  "snapshotUpdatedAt": "2026-11-18T18:08:45.924965+00:00",
+  "snapshotUpdatedAt": "2026-11-19T08:18:06.331768+00:00",
   "anomalyBounds": {
     "minStationCount": 1,
     "maxStationDropRatio": 0.1,
@@ -16,14 +16,14 @@
     "maxStreamDropRatio": 0.15,
     "minRecordProductionCoverage": 0.8
   },
-  "verifiedAt": "2026-11-18T18:12:29.177583+00:00",
+  "verifiedAt": "2026-11-19T08:24:49.233074+00:00",
   "previous": {
-    "objectKey": "radsync/state/previous/curated-radio/44365464391-b0b62ffc0d88/sha256/0d402f0968a8d8c2a282f3a97fd14ba10018b318a56591dfba6b79c9409e1748/previous.jsonl.zst",
-    "sha256": "0d402f0968a8d8c2a282f3a97fd14ba10018b318a56591dfba6b79c9409e1748",
-    "compressedBytes": 35837,
+    "objectKey": "radsync/state/previous/curated-radio/44486235682-ec1312ee96d8/sha256/a18390e968b74576e08a7becf7326a39dde05e6b9f2b83ab1e0be75044e237fe/previous.jsonl.zst",
+    "sha256": "a18390e968b74576e08a7becf7326a39dde05e6b9f2b83ab1e0be75044e237fe",
+    "compressedBytes": 35782,
     "stationCount": 469,
     "streamCount": 469,
-    "snapshotUpdatedAt": "2026-11-18T18:00:09.157248+00:00",
+    "snapshotUpdatedAt": "2026-11-18T18:08:45.924965+00:00",
     "anomalyBounds": {
       "maxStationDropRatio": 0.1,
       "maxStreamDropRatio": 0.15,
@@ -31,5 +31,19 @@
       "minStationCount": 1,
       "minStreamCount": 1
     }
-  }
+  },
+  "rotationCleanup": [
+    {
+      "deleteKey": "radsync/state/current/curated-radio/44365464391-b0b62ffc0d88/sha256/a18390e968b74576e08a7becf7326a39dde05e6b9f2b83ab1e0be75044e237fe/active.jsonl.zst",
+      "replacementKey": "radsync/state/previous/curated-radio/44486235682-ec1312ee96d8/sha256/a18390e968b74576e08a7becf7326a39dde05e6b9f2b83ab1e0be75044e237fe/previous.jsonl.zst",
+      "replacementRole": "previous",
+      "sha256": "a18390e968b74576e08a7becf7326a39dde05e6b9f2b83ab1e0be75044e237fe"
+    },
+    {
+      "deleteKey": "radsync/state/previous/curated-radio/44365464391-b0b62ffc0d88/sha256/0d402f0968a8d8c2a282f3a97fd14ba10018b318a56591dfba6b79c9409e1748/previous.jsonl.zst",
+      "replacementKey": "radsync/state/archive/curated-radio/2026-11-19T08-23-24Z-44486235682-ec1312ee96d8-0d402f0968a8d8c2a282f3a97fd14ba10018b318a56591dfba6b79c9409e1748.jsonl.zst",
+      "replacementRole": "archive",
+      "sha256": "0d402f0968a8d8c2a282f3a97fd14ba10018b318a56591dfba6b79c9409e1748"
+    }
+  ]
 }
