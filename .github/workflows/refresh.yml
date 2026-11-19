@@ -151,6 +151,14 @@ jobs:
           python -c 'import json,sys; p=json.load(open(sys.argv[1])); print(json.dumps({k:p[k] for k in ("previousVersion","currentVersion","retained","changed","removed","added","ambiguousPrevious","ambiguousCurrent")}, indent=2))' \
             state/identity-continuity/"$CURRENT_VERSION".json
 
+      - name: Compress identity continuity diagnostics
+        if: ${{ steps.build_catalogue.outcome == 'success' && steps.previous_catalogue.outputs.available == 'true' }}
+        run: |
+          set -euo pipefail
+          find state/identity-continuity -maxdepth 1 -type f -name '*.json' -print0 | while IFS= read -r -d '' report; do
+            gzip -9 "$report"
+          done
+
       - name: Persist externally verified provider snapshots
         id: persist_external
         if: ${{ always() && steps.state_checkout.outcome == 'success' && steps.validate_state.outcome == 'success' && steps.build_catalogue.outcome != 'skipped' }}
@@ -193,7 +201,8 @@ jobs:
           git -C state rm --cached -f diagnostics/source-report.json diagnostics/identity-ambiguity.json >/dev/null 2>&1 || true
           git -C state add --all -- . \
             ':(exclude)diagnostics/source-report.json' \
-            ':(exclude)diagnostics/identity-ambiguity.json'
+            ':(exclude)diagnostics/identity-ambiguity.json' \
+            ':(exclude)identity-continuity/**'
           if git -C state diff --cached --quiet; then
             echo "No external manifest or diagnostic changes to persist."
           else
@@ -229,6 +238,15 @@ jobs:
             --output "verification/source-report.json"
           cmp --silent state/diagnostics/source-report.json verification/source-report.json
           echo "External refresh report CLI retrieval and byte-for-byte verification passed."
+
+      - name: Upload station identity continuity report
+        if: ${{ always() && steps.build_catalogue.outcome == 'success' && steps.previous_catalogue.outputs.available == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: identity-continuity-${{ github.run_id }}
+          path: state/identity-continuity/*.json.gz
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload identity ambiguity diagnostics
         if: ${{ always() && steps.state_checkout.outcome == 'success' }}
