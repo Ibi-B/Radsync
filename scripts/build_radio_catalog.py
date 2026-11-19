@@ -308,7 +308,8 @@ def _source_ids_for_station(station):
 
 
 def make_station(name, country="", country_code="", language="", tags=None, streams=None,
-                 identity_evidence=None):
+                 identity_evidence=None, artwork_url="", website_url="", description="",
+                 call_sign="", city="", region=""):
     streams = [stream for stream in (streams or []) if valid_stream_url(stream.get("url"))]
     streams.sort(key=stream_sort_key, reverse=True)
     evidence = list(identity_evidence or [
@@ -360,6 +361,12 @@ def make_station(name, country="", country_code="", language="", tags=None, stre
         "countryCode": country_code,
         "language": language,
         "tags": normalize_tags(tags),
+        "artworkUrl": str(artwork_url or "").strip(),
+        "websiteUrl": str(website_url or "").strip(),
+        "description": str(description or "").strip(),
+        "callSign": str(call_sign or "").strip(),
+        "city": str(city or "").strip(),
+        "region": str(region or "").strip(),
         "streams": streams,
         "defaultStreamIndex": 0,
         "defaultSource": streams[0]["source"] if streams else None,
@@ -422,6 +429,8 @@ def merge_station(target, incoming):
     target["country"] = target["country"] or incoming["country"]
     target["countryCode"] = target["countryCode"] or incoming["countryCode"]
     target["language"] = target["language"] or incoming["language"]
+    for field in ("artworkUrl", "websiteUrl", "description", "callSign", "city", "region"):
+        target[field] = target.get(field) or incoming.get(field, "")
 
     for tag in incoming["tags"]:
         if tag not in target["tags"]:
@@ -1254,17 +1263,8 @@ async def main(state_dir=Path("state"), snapshot_store: SnapshotStore | None = N
         raw = as_records(await fetch_stations(session, source_config["url"]))
         result = []
         for item in raw:
-            record = {
-                "name": get_value(item, "name"),
-                "country": get_value(item, "country"),
-                "countryCode": get_value(item, "country_code"),
-                "language": get_value(item, "language"),
-                "tags": get_value(item, "tags"),
-                "url": item.get("url_resolved") or item.get("urlResolved") or get_value(item, "url"),
-                "codec": get_value(item, "codec"),
-                "bitrate": get_value(item, "bitrate", 0),
-                "id": get_value(item, "stationuuid") or get_value(item, "stationUuid") or get_value(item, "id"),
-            }
+            record = dict(item)
+            record["url"] = item.get("url_resolved") or item.get("urlResolved") or get_value(item, "url")
             normalized = normalize_record(record)
             if normalized:
                 result.append(make_station(
@@ -1276,6 +1276,9 @@ async def main(state_dir=Path("state"), snapshot_store: SnapshotStore | None = N
                         "radio-browser", item, normalized["sourceStationId"], source_config["url"],
                         stream_url=normalized["url"], codec=normalized["codec"], bitrate=normalized["bitrate"],
                     )],
+                    artwork_url=normalized["artworkUrl"], website_url=normalized["websiteUrl"],
+                    description=normalized["description"], call_sign=normalized["callSign"],
+                    city=normalized["city"], region=normalized["region"],
                 ))
         return result
 
@@ -1373,6 +1376,12 @@ async def main(state_dir=Path("state"), snapshot_store: SnapshotStore | None = N
                     priority=priority, source_station_id=item.get("station_id"),
                 )],
                 identity_evidence=[evidence],
+                artwork_url=item.get("logo", ""),
+                website_url=get_value(evidence_record, "website", ""),
+                description=get_value(evidence_record, "description", ""),
+                call_sign=get_value(evidence_record, "call_sign", ""),
+                city=get_value(evidence_record, "city", ""),
+                region=get_value(evidence_record, "region", ""),
             ))
         return result
 
@@ -1391,6 +1400,9 @@ async def main(state_dir=Path("state"), snapshot_store: SnapshotStore | None = N
                         "iptv-org-streams", item, normalized["sourceStationId"], source_config["url"],
                         stream_url=normalized["url"], codec=normalized["codec"], bitrate=normalized["bitrate"],
                     )],
+                    artwork_url=normalized["artworkUrl"], website_url=normalized["websiteUrl"],
+                    description=normalized["description"], call_sign=normalized["callSign"],
+                    city=normalized["city"], region=normalized["region"],
                 ))
         return result
 
