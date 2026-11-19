@@ -1330,6 +1330,12 @@ async def main(state_dir=Path("state"), snapshot_store: SnapshotStore | None = N
                         stream_url=stream.get("url"), codec=get_value(stream, "codec"),
                         bitrate=get_value(stream, "bitrate", 0),
                     ) for stream in streams_by_station.get(str(station_id), [])],
+                    artwork_url=get_value(station, "artwork", ""),
+                    website_url=get_value(station, "website", ""),
+                    description=get_value(station, "description", ""),
+                    call_sign=get_value(station, "call_sign", ""),
+                    city=get_value(station, "city", ""),
+                    region=get_value(station, "region", ""),
                 ))
         return result
 
@@ -1477,6 +1483,12 @@ async def main(state_dir=Path("state"), snapshot_store: SnapshotStore | None = N
                 streams=[make_stream(source_id, item["stream_url"], priority=priority,
                                      source_station_id=item.get("station_id"))],
                 identity_evidence=[evidence],
+                artwork_url=item.get("logo", "") or get_value(evidence_record, "artwork", ""),
+                website_url=get_value(evidence_record, "website", ""),
+                description=get_value(evidence_record, "description", ""),
+                call_sign=get_value(evidence_record, "call_sign", ""),
+                city=get_value(evidence_record, "city", ""),
+                region=get_value(evidence_record, "region", ""),
             ))
         return result
 
