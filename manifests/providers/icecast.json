@@ -3,23 +3,23 @@
   "layoutVersion": 2,
   "format": "radsync-jsonl-zstd-v1",
   "source": "icecast",
-  "objectKey": "radsync/state/current/icecast/44889821895-12b08eb76571/sha256/1318d39386735b4d201cea239d92b64b9eeff9facb2d31a5564ed630b77df9f1/active.jsonl.zst",
-  "sha256": "1318d39386735b4d201cea239d92b64b9eeff9facb2d31a5564ed630b77df9f1",
-  "compressedBytes": 860006,
-  "stationCount": 13411,
-  "streamCount": 13411,
-  "snapshotUpdatedAt": "2026-11-20T09:54:41.899516+00:00",
+  "objectKey": "radsync/state/current/icecast/45008304698-5b4b141f40d4/sha256/54291826cd4caaf1522e579756cdb91a5f5a4facce46f7814c931ab51a7e5f38/active.jsonl.zst",
+  "sha256": "54291826cd4caaf1522e579756cdb91a5f5a4facce46f7814c931ab51a7e5f38",
+  "compressedBytes": 834759,
+  "stationCount": 13279,
+  "streamCount": 13279,
+  "snapshotUpdatedAt": "2026-11-22T09:37:29.572857+00:00",
   "anomalyBounds": {
     "minStationCount": 10000,
     "maxStationDropRatio": 0.1,
     "minStreamCount": 10000,
     "maxStreamDropRatio": 0.15
   },
-  "verifiedAt": "2026-11-21T09:35:01.104399+00:00",
+  "verifiedAt": "2026-11-22T09:43:43.400698+00:00",
   "previous": {
-    "objectKey": "radsync/state/previous/icecast/44889821895-12b08eb76571/sha256/dc6cbc4d178e5e6b8e669c56f641cb41a9acb95a20a19bffe91b5b9019e904e8/previous.jsonl.zst",
-    "sha256": "dc6cbc4d178e5e6b8e669c56f641cb41a9acb95a20a19bffe91b5b9019e904e8",
-    "compressedBytes": 831177,
+    "objectKey": "radsync/state/previous/icecast/45008304698-5b4b141f40d4/sha256/1318d39386735b4d201cea239d92b64b9eeff9facb2d31a5564ed630b77df9f1/previous.jsonl.zst",
+    "sha256": "1318d39386735b4d201cea239d92b64b9eeff9facb2d31a5564ed630b77df9f1",
+    "compressedBytes": 860006,
     "stationCount": 13411,
     "streamCount": 13411,
     "snapshotUpdatedAt": "2026-11-20T09:54:41.899516+00:00",
@@ -29,5 +29,19 @@
       "minStationCount": 10000,
       "minStreamCount": 10000
     }
-  }
+  },
+  "rotationCleanup": [
+    {
+      "deleteKey": "radsync/state/current/icecast/44889821895-12b08eb76571/sha256/1318d39386735b4d201cea239d92b64b9eeff9facb2d31a5564ed630b77df9f1/active.jsonl.zst",
+      "replacementKey": "radsync/state/previous/icecast/45008304698-5b4b141f40d4/sha256/1318d39386735b4d201cea239d92b64b9eeff9facb2d31a5564ed630b77df9f1/previous.jsonl.zst",
+      "replacementRole": "previous",
+      "sha256": "1318d39386735b4d201cea239d92b64b9eeff9facb2d31a5564ed630b77df9f1"
+    },
+    {
+      "deleteKey": "radsync/state/previous/icecast/44889821895-12b08eb76571/sha256/dc6cbc4d178e5e6b8e669c56f641cb41a9acb95a20a19bffe91b5b9019e904e8/previous.jsonl.zst",
+      "replacementKey": "radsync/state/archive/icecast/2026-11-22T09-41-35Z-45008304698-5b4b141f40d4-dc6cbc4d178e5e6b8e669c56f641cb41a9acb95a20a19bffe91b5b9019e904e8.jsonl.zst",
+      "replacementRole": "archive",
+      "sha256": "dc6cbc4d178e5e6b8e669c56f641cb41a9acb95a20a19bffe91b5b9019e904e8"
+    }
+  ]
 }
