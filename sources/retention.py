@@ -647,34 +647,61 @@ def finalize_external_rotation(state_dir, *, manifest_pushed=False):
     return {"finalized": finalized, "manifestsUpdated": updated, "pending": len(pending) - finalized}
 
 
-def prune_external_archive_objects(older_than_days=90, apply=False):
-    """Prune old objects from archive/ only; current/ and previous/ are never listed."""
-    if int(older_than_days) < 90:
-        raise base.ExternalStateError("Archive pruning age cannot be less than 90 days")
-    client, bucket, prefix, _ = _s3_context()
-    archive_prefix = f"{prefix}/archive/"
+def _prune_prefix(client, bucket, object_prefix, older_than_days, apply, label):
+    """List and optionally delete expired objects beneath exactly one prefix."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=int(older_than_days))
     eligible = []
     token = None
     while True:
-        args = {"Bucket": bucket, "Prefix": archive_prefix}
+        args = {"Bucket": bucket, "Prefix": object_prefix}
         if token:
             args["ContinuationToken"] = token
         response = client.list_objects_v2(**args)
         for item in response.get("Contents") or []:
             key = item.get("Key")
             modified = item.get("LastModified")
-            if key and key.startswith(archive_prefix) and modified and modified < cutoff:
+            if key and key.startswith(object_prefix) and modified and modified < cutoff:
                 eligible.append(key)
         if not response.get("IsTruncated"):
             break
         token = response.get("NextContinuationToken")
         if not token:
-            raise base.ExternalStateError("Archive listing is truncated without a continuation token")
+            raise base.ExternalStateError(
+                f"{label} listing is truncated without a continuation token"
+            )
 
     if apply:
         for key in eligible:
-            if not key.startswith(archive_prefix):
-                raise base.ExternalStateError("Refusing to prune an object outside archive/")
+            if not key.startswith(object_prefix):
+                raise base.ExternalStateError(
+                    f"Refusing to prune an object outside {label}/"
+                )
             client.delete_object(Bucket=bucket, Key=key)
-    return {"prefix": archive_prefix, "eligible": eligible, "deleted": eligible if apply else [], "apply": bool(apply)}
+    return {
+        "prefix": object_prefix,
+        "eligible": eligible,
+        "deleted": eligible if apply else [],
+        "apply": bool(apply),
+    }
+
+
+def prune_external_archive_objects(older_than_days=30, apply=False):
+    """Prune archive history older than 30 days; never list current/ or previous/."""
+    if int(older_than_days) < 30:
+        raise base.ExternalStateError("Archive pruning age cannot be less than 30 days")
+    client, bucket, prefix, _ = _s3_context()
+    archive_prefix = f"{prefix}/archive/"
+    return _prune_prefix(
+        client, bucket, archive_prefix, older_than_days, apply, "archive"
+    )
+
+
+def prune_external_diagnostics_objects(older_than_days=30, apply=False):
+    """Prune historical diagnostics only; provider state and catalogue data are untouched."""
+    if int(older_than_days) < 30:
+        raise base.ExternalStateError("Diagnostics pruning age cannot be less than 30 days")
+    client, bucket, _, diagnostics_prefix = _s3_context()
+    object_prefix = f"{diagnostics_prefix}/"
+    return _prune_prefix(
+        client, bucket, object_prefix, older_than_days, apply, "diagnostics"
+    )

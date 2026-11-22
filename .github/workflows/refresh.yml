@@ -218,6 +218,13 @@ jobs:
             git -C state commit -m "Finalize Radsync snapshot rotation for run ${GITHUB_RUN_ID}"
             git -C state push origin HEAD:refs/heads/radsync-state
           fi
+
+          # Prune only historical object prefixes after pointer rotation is durable.
+          # Current and previous-good provider snapshots are never listed or expired.
+          python -m sources.state_cli prune-external-archive \
+            --state-dir state --max-age-days 30 --apply
+          python -m sources.state_cli prune-external-diagnostics \
+            --state-dir state --max-age-days 30 --apply
       - name: Verify external refresh report CLI retrieval
         if: ${{ steps.persist_external.outcome == 'success' }}
         env:

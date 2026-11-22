@@ -299,16 +299,50 @@ class RetentionLayoutTests(unittest.TestCase):
                 "modified": old,
             }
 
-        preview = retention.prune_external_archive_objects(90, apply=False)
+        preview = retention.prune_external_archive_objects(30, apply=False)
         self.assertEqual(["radsync/state/archive/fixture/old.jsonl.zst"], preview["eligible"])
         self.assertEqual(["radsync/state/archive/"], self.client.listed_prefixes)
         self.assertEqual(keys, set(self.client.objects))
 
-        applied = retention.prune_external_archive_objects(90, apply=True)
+        applied = retention.prune_external_archive_objects(30, apply=True)
         self.assertEqual(preview["eligible"], applied["deleted"])
         self.assertIn("radsync/state/current/fixture/active.jsonl.zst", self.client.objects)
         self.assertIn("radsync/state/previous/fixture/previous.jsonl.zst", self.client.objects)
         self.assertNotIn("radsync/state/archive/fixture/old.jsonl.zst", self.client.objects)
+
+    def test_diagnostics_pruning_is_separate_and_preserves_current_previous(self):
+        old = datetime.now(timezone.utc) - timedelta(days=100)
+        keys = {
+            "radsync/state/current/fixture/active.jsonl.zst",
+            "radsync/state/previous/fixture/previous.jsonl.zst",
+            "radsync/state/archive/fixture/old.jsonl.zst",
+            "radsync/diagnostics/old-report.json.zst",
+        }
+        for key in keys:
+            self.client.objects[key] = {
+                "body": b"data",
+                "metadata": {"sha256": "abcd"},
+                "modified": old,
+            }
+
+        preview = retention.prune_external_diagnostics_objects(30, apply=False)
+        self.assertEqual(["radsync/diagnostics/old-report.json.zst"], preview["eligible"])
+        self.assertEqual(["radsync/diagnostics/"], self.client.listed_prefixes)
+        self.assertEqual(keys, set(self.client.objects))
+
+        applied = retention.prune_external_diagnostics_objects(30, apply=True)
+        self.assertEqual(preview["eligible"], applied["deleted"])
+        self.assertIn("radsync/state/current/fixture/active.jsonl.zst", self.client.objects)
+        self.assertIn("radsync/state/previous/fixture/previous.jsonl.zst", self.client.objects)
+        self.assertIn("radsync/state/archive/fixture/old.jsonl.zst", self.client.objects)
+        self.assertNotIn("radsync/diagnostics/old-report.json.zst", self.client.objects)
+
+    def test_historical_pruners_refuse_a_retention_period_shorter_than_30_days(self):
+        with self.assertRaisesRegex(retention.base.ExternalStateError, "30 days"):
+            retention.prune_external_archive_objects(29, apply=True)
+        with self.assertRaisesRegex(retention.base.ExternalStateError, "30 days"):
+            retention.prune_external_diagnostics_objects(29, apply=True)
+        self.assertEqual([], self.client.listed_prefixes)
 
     def test_diagnostics_use_separate_prefix_and_report_is_retrievable(self):
         report = self.root / "source-report.json"
