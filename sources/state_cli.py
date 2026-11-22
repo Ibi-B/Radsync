@@ -17,6 +17,7 @@ def main():
             "fetch-external-report",
             "finalize-external",
             "prune-external-archive",
+            "prune-external-diagnostics",
         ),
     )
     parser.add_argument("--state-dir", required=True)
@@ -25,7 +26,7 @@ def main():
     parser.add_argument("--ambiguity", default="state/diagnostics/identity-ambiguity.json")
     parser.add_argument("--run-id", default=None)
     parser.add_argument("--output", default=None)
-    parser.add_argument("--max-age-days", type=int, default=90)
+    parser.add_argument("--max-age-days", type=int, default=30)
     parser.add_argument("--apply", action="store_true")
     parser.add_argument(
         "--manifest-pushed",
@@ -47,6 +48,7 @@ def main():
         fetch_external_report,
         finalize_external_rotation,
         prune_external_archive_objects,
+        prune_external_diagnostics_objects,
         publish_external_snapshots,
         restore_external_snapshots,
     )
@@ -64,6 +66,8 @@ def main():
             result = finalize_external_rotation(args.state_dir, manifest_pushed=True)
         elif args.command == "prune-external-archive":
             result = prune_external_archive_objects(args.max_age_days, apply=args.apply)
+        elif args.command == "prune-external-diagnostics":
+            result = prune_external_diagnostics_objects(args.max_age_days, apply=args.apply)
         else:
             result = publish_external_snapshots(
                 args.state_dir,
