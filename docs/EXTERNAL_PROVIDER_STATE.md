@@ -55,7 +55,7 @@ Configure lifecycle rules only after the retention-aware layout is merged and re
 | \`radsync/state/current/\` | No lifecycle expiration |
 | \`radsync/state/previous/\` | No lifecycle expiration |
 | \`radsync/state/archive/\` | Expire after 30 days |
-| \`radsync/diagnostics/\` | Expire after 30 days (within the 60–90-day policy) |
+| \`radsync/diagnostics/\` | Expire after 30 days |
 
 Do not create a bucket-wide or \`radsync/state/\`-wide expiration rule. Such a rule could delete a current or previous-good object when no successful refresh has occurred for longer than the retention window.
 
