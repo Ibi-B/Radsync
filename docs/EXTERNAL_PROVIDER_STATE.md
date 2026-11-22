@@ -54,12 +54,12 @@ Configure lifecycle rules only after the retention-aware layout is merged and re
 |---|---|
 | \`radsync/state/current/\` | No lifecycle expiration |
 | \`radsync/state/previous/\` | No lifecycle expiration |
-| \`radsync/state/archive/\` | Expire after 90 days |
-| \`radsync/diagnostics/\` | Expire after 75 days (within the 60–90-day policy) |
+| \`radsync/state/archive/\` | Expire after 30 days |
+| \`radsync/diagnostics/\` | Expire after 30 days (within the 60–90-day policy) |
 
 Do not create a bucket-wide or \`radsync/state/\`-wide expiration rule. Such a rule could delete a current or previous-good object when no successful refresh has occurred for longer than the retention window.
 
-The optional \`prune-external-archive\` command defaults to a dry run and refuses an age below 90 days. When explicitly invoked with \`--apply\`, it lists and deletes objects only beneath \`archive/\`. It never lists or deletes objects from \`current/\` or \`previous/\`. R2 lifecycle expiration should remain the normal archive cleanup mechanism.
+The \\`prune-external-archive\\` and \\`prune-external-diagnostics\\` commands default to a dry run and refuse an age below 30 days. The scheduled refresh runs both with \\`--apply\\` after the manifest pointers are durably pushed and rotation is finalized. Archive pruning lists only \\`archive/\\`; diagnostics pruning lists only the separate diagnostics prefix. Neither command lists or deletes \\`current/\\` or \\`previous/\\`. Configure matching 30-day R2 lifecycle rules for archive and diagnostics as a storage-side backstop, but never configure lifecycle expiration for current/previous or any published catalogue data.
 
 ## Object format and verification
 
@@ -139,8 +139,8 @@ R2 is the primary target for the first live migration:
 
 Configure only these lifecycle rules:
 
-1. Prefix \`radsync/state/archive/\`: expire after 90 days.
-2. Prefix \`radsync/diagnostics/\`: expire after 75 days.
+1. Prefix \`radsync/state/archive/\`: expire after 30 days.
+2. Prefix \`radsync/diagnostics/\`: expire after 30 days.
 
 Do not apply expiration to \`current/\` or \`previous/\`, and do not enable Bucket Lock. Do not configure R2 or add GitHub repository variables/secrets as part of this code change.
 
