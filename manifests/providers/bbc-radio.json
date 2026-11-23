@@ -29,19 +29,5 @@
       "minStationCount": 8,
       "minStreamCount": 8
     }
-  },
-  "rotationCleanup": [
-    {
-      "deleteKey": "radsync/state/current/bbc-radio/45008304698-5b4b141f40d4/sha256/77e3b656ed46a23ab6464a4574aa7ee955e44ec0532353abe433a3790f8f90ab/active.jsonl.zst",
-      "replacementKey": "radsync/state/previous/bbc-radio/45157231393-3fcfe0ae991d/sha256/77e3b656ed46a23ab6464a4574aa7ee955e44ec0532353abe433a3790f8f90ab/previous.jsonl.zst",
-      "replacementRole": "previous",
-      "sha256": "77e3b656ed46a23ab6464a4574aa7ee955e44ec0532353abe433a3790f8f90ab"
-    },
-    {
-      "deleteKey": "radsync/state/previous/bbc-radio/45008304698-5b4b141f40d4/sha256/24705589baaac8eba19edf031911ffe056c71f06c393fe37f93969ac2a3b0cf6/previous.jsonl.zst",
-      "replacementKey": "radsync/state/archive/bbc-radio/2026-11-23T10-38-33Z-45157231393-3fcfe0ae991d-24705589baaac8eba19edf031911ffe056c71f06c393fe37f93969ac2a3b0cf6.jsonl.zst",
-      "replacementRole": "archive",
-      "sha256": "24705589baaac8eba19edf031911ffe056c71f06c393fe37f93969ac2a3b0cf6"
-    }
-  ]
+  }
 }

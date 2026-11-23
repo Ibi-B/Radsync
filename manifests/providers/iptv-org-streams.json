@@ -29,19 +29,5 @@
       "minStationCount": 15000,
       "minStreamCount": 15000
     }
-  },
-  "rotationCleanup": [
-    {
-      "deleteKey": "radsync/state/current/iptv-org-streams/45008304698-5b4b141f40d4/sha256/36222cff5bbe81781711252b4636e406a1b4cfdd94a8181be757665a8c3f5f07/active.jsonl.zst",
-      "replacementKey": "radsync/state/previous/iptv-org-streams/45157231393-3fcfe0ae991d/sha256/36222cff5bbe81781711252b4636e406a1b4cfdd94a8181be757665a8c3f5f07/previous.jsonl.zst",
-      "replacementRole": "previous",
-      "sha256": "36222cff5bbe81781711252b4636e406a1b4cfdd94a8181be757665a8c3f5f07"
-    },
-    {
-      "deleteKey": "radsync/state/previous/iptv-org-streams/45008304698-5b4b141f40d4/sha256/c59da79b818b8d020c29f7d094bc929e2cf4cc2fc4e21fba5755e1bb6d98b1f1/previous.jsonl.zst",
-      "replacementKey": "radsync/state/archive/iptv-org-streams/2026-11-23T10-38-33Z-45157231393-3fcfe0ae991d-c59da79b818b8d020c29f7d094bc929e2cf4cc2fc4e21fba5755e1bb6d98b1f1.jsonl.zst",
-      "replacementRole": "archive",
-      "sha256": "c59da79b818b8d020c29f7d094bc929e2cf4cc2fc4e21fba5755e1bb6d98b1f1"
-    }
-  ]
+  }
 }
