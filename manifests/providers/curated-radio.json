@@ -31,19 +31,5 @@
       "minStationCount": 1,
       "minStreamCount": 1
     }
-  },
-  "rotationCleanup": [
-    {
-      "deleteKey": "radsync/state/current/curated-radio/45157231393-3fcfe0ae991d/sha256/4979bc785db8a1ce00476e15db52b6231fcd1d046dfe96c7a942ca8cd5bb7e39/active.jsonl.zst",
-      "replacementKey": "radsync/state/previous/curated-radio/45392003077-8c35117b27be/sha256/4979bc785db8a1ce00476e15db52b6231fcd1d046dfe96c7a942ca8cd5bb7e39/previous.jsonl.zst",
-      "replacementRole": "previous",
-      "sha256": "4979bc785db8a1ce00476e15db52b6231fcd1d046dfe96c7a942ca8cd5bb7e39"
-    },
-    {
-      "deleteKey": "radsync/state/previous/curated-radio/45157231393-3fcfe0ae991d/sha256/d97b7f3716f8fd08800642bef4990059bef43fdf41ce10e093ab541fd87f6f22/previous.jsonl.zst",
-      "replacementKey": "radsync/state/archive/curated-radio/2026-11-24T12-26-55Z-45392003077-8c35117b27be-d97b7f3716f8fd08800642bef4990059bef43fdf41ce10e093ab541fd87f6f22.jsonl.zst",
-      "replacementRole": "archive",
-      "sha256": "d97b7f3716f8fd08800642bef4990059bef43fdf41ce10e093ab541fd87f6f22"
-    }
-  ]
+  }
 }
