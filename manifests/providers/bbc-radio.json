@@ -3,31 +3,45 @@
   "layoutVersion": 2,
   "format": "radsync-jsonl-zstd-v1",
   "source": "bbc-radio",
-  "objectKey": "radsync/state/current/bbc-radio/45157231393-3fcfe0ae991d/sha256/710cc985e3c088ba9a48cc6626f11ecdddd5300140db2476c88dfb57a4227ba5/active.jsonl.zst",
-  "sha256": "710cc985e3c088ba9a48cc6626f11ecdddd5300140db2476c88dfb57a4227ba5",
-  "compressedBytes": 1452,
+  "objectKey": "radsync/state/current/bbc-radio/45392003077-8c35117b27be/sha256/66122debb8280220fdde0cb510938e5a0cb7b94acf497b8911908079e2daf8d7/active.jsonl.zst",
+  "sha256": "66122debb8280220fdde0cb510938e5a0cb7b94acf497b8911908079e2daf8d7",
+  "compressedBytes": 1457,
   "stationCount": 10,
   "streamCount": 10,
-  "snapshotUpdatedAt": "2026-11-23T10:34:34.804462+00:00",
+  "snapshotUpdatedAt": "2026-11-24T12:18:03.548407+00:00",
   "anomalyBounds": {
     "minStationCount": 8,
     "maxStationDropRatio": 0.1,
     "minStreamCount": 8,
     "maxStreamDropRatio": 0.15
   },
-  "verifiedAt": "2026-11-23T10:39:37.772920+00:00",
+  "verifiedAt": "2026-11-24T12:28:14.694028+00:00",
   "previous": {
-    "objectKey": "radsync/state/previous/bbc-radio/45157231393-3fcfe0ae991d/sha256/77e3b656ed46a23ab6464a4574aa7ee955e44ec0532353abe433a3790f8f90ab/previous.jsonl.zst",
-    "sha256": "77e3b656ed46a23ab6464a4574aa7ee955e44ec0532353abe433a3790f8f90ab",
-    "compressedBytes": 1458,
+    "objectKey": "radsync/state/previous/bbc-radio/45392003077-8c35117b27be/sha256/710cc985e3c088ba9a48cc6626f11ecdddd5300140db2476c88dfb57a4227ba5/previous.jsonl.zst",
+    "sha256": "710cc985e3c088ba9a48cc6626f11ecdddd5300140db2476c88dfb57a4227ba5",
+    "compressedBytes": 1452,
     "stationCount": 10,
     "streamCount": 10,
-    "snapshotUpdatedAt": "2026-11-22T09:36:48.278185+00:00",
+    "snapshotUpdatedAt": "2026-11-23T10:34:34.804462+00:00",
     "anomalyBounds": {
       "maxStationDropRatio": 0.1,
       "maxStreamDropRatio": 0.15,
       "minStationCount": 8,
       "minStreamCount": 8
     }
-  }
+  },
+  "rotationCleanup": [
+    {
+      "deleteKey": "radsync/state/current/bbc-radio/45157231393-3fcfe0ae991d/sha256/710cc985e3c088ba9a48cc6626f11ecdddd5300140db2476c88dfb57a4227ba5/active.jsonl.zst",
+      "replacementKey": "radsync/state/previous/bbc-radio/45392003077-8c35117b27be/sha256/710cc985e3c088ba9a48cc6626f11ecdddd5300140db2476c88dfb57a4227ba5/previous.jsonl.zst",
+      "replacementRole": "previous",
+      "sha256": "710cc985e3c088ba9a48cc6626f11ecdddd5300140db2476c88dfb57a4227ba5"
+    },
+    {
+      "deleteKey": "radsync/state/previous/bbc-radio/45157231393-3fcfe0ae991d/sha256/77e3b656ed46a23ab6464a4574aa7ee955e44ec0532353abe433a3790f8f90ab/previous.jsonl.zst",
+      "replacementKey": "radsync/state/archive/bbc-radio/2026-11-24T12-26-55Z-45392003077-8c35117b27be-77e3b656ed46a23ab6464a4574aa7ee955e44ec0532353abe433a3790f8f90ab.jsonl.zst",
+      "replacementRole": "archive",
+      "sha256": "77e3b656ed46a23ab6464a4574aa7ee955e44ec0532353abe433a3790f8f90ab"
+    }
+  ]
 }

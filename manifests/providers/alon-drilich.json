@@ -3,12 +3,12 @@
   "layoutVersion": 2,
   "format": "radsync-jsonl-zstd-v1",
   "source": "alon-drilich",
-  "objectKey": "radsync/state/current/alon-drilich/45157231393-3fcfe0ae991d/sha256/1ebe7bc1a04a6a90f6b9c8225a172aa35fd8e42a645d82939cf1fd427012df45/active.jsonl.zst",
-  "sha256": "1ebe7bc1a04a6a90f6b9c8225a172aa35fd8e42a645d82939cf1fd427012df45",
-  "compressedBytes": 3223381,
-  "stationCount": 33633,
-  "streamCount": 33633,
-  "snapshotUpdatedAt": "2026-11-23T10:35:44.360302+00:00",
+  "objectKey": "radsync/state/current/alon-drilich/45392003077-8c35117b27be/sha256/9d5d3311a12f5ae9a0c9b7c5e3de8f6b95795a2813220e7dbdbe02cd1212dded/active.jsonl.zst",
+  "sha256": "9d5d3311a12f5ae9a0c9b7c5e3de8f6b95795a2813220e7dbdbe02cd1212dded",
+  "compressedBytes": 3238529,
+  "stationCount": 33780,
+  "streamCount": 33780,
+  "snapshotUpdatedAt": "2026-11-24T12:18:56.927294+00:00",
   "anomalyBounds": {
     "minStationCount": 30000,
     "maxStationDropRatio": 0.1,
@@ -16,14 +16,14 @@
     "maxStreamDropRatio": 0.15,
     "minRecordProductionCoverage": 0.8
   },
-  "verifiedAt": "2026-11-23T10:39:31.664039+00:00",
+  "verifiedAt": "2026-11-24T12:28:09.048980+00:00",
   "previous": {
-    "objectKey": "radsync/state/previous/alon-drilich/45157231393-3fcfe0ae991d/sha256/ac00864b98921a81d4f770e8222859cdc92e4a3f16f095b738de50fe7f68e341/previous.jsonl.zst",
-    "sha256": "ac00864b98921a81d4f770e8222859cdc92e4a3f16f095b738de50fe7f68e341",
-    "compressedBytes": 3227768,
+    "objectKey": "radsync/state/previous/alon-drilich/45392003077-8c35117b27be/sha256/1ebe7bc1a04a6a90f6b9c8225a172aa35fd8e42a645d82939cf1fd427012df45/previous.jsonl.zst",
+    "sha256": "1ebe7bc1a04a6a90f6b9c8225a172aa35fd8e42a645d82939cf1fd427012df45",
+    "compressedBytes": 3223381,
     "stationCount": 33633,
     "streamCount": 33633,
-    "snapshotUpdatedAt": "2026-11-22T09:38:09.347211+00:00",
+    "snapshotUpdatedAt": "2026-11-23T10:35:44.360302+00:00",
     "anomalyBounds": {
       "maxStationDropRatio": 0.1,
       "maxStreamDropRatio": 0.15,
@@ -31,5 +31,19 @@
       "minStationCount": 30000,
       "minStreamCount": 30000
     }
-  }
+  },
+  "rotationCleanup": [
+    {
+      "deleteKey": "radsync/state/current/alon-drilich/45157231393-3fcfe0ae991d/sha256/1ebe7bc1a04a6a90f6b9c8225a172aa35fd8e42a645d82939cf1fd427012df45/active.jsonl.zst",
+      "replacementKey": "radsync/state/previous/alon-drilich/45392003077-8c35117b27be/sha256/1ebe7bc1a04a6a90f6b9c8225a172aa35fd8e42a645d82939cf1fd427012df45/previous.jsonl.zst",
+      "replacementRole": "previous",
+      "sha256": "1ebe7bc1a04a6a90f6b9c8225a172aa35fd8e42a645d82939cf1fd427012df45"
+    },
+    {
+      "deleteKey": "radsync/state/previous/alon-drilich/45157231393-3fcfe0ae991d/sha256/ac00864b98921a81d4f770e8222859cdc92e4a3f16f095b738de50fe7f68e341/previous.jsonl.zst",
+      "replacementKey": "radsync/state/archive/alon-drilich/2026-11-24T12-26-55Z-45392003077-8c35117b27be-ac00864b98921a81d4f770e8222859cdc92e4a3f16f095b738de50fe7f68e341.jsonl.zst",
+      "replacementRole": "archive",
+      "sha256": "ac00864b98921a81d4f770e8222859cdc92e4a3f16f095b738de50fe7f68e341"
+    }
+  ]
 }
