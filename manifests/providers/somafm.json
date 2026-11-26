@@ -29,19 +29,5 @@
       "minStationCount": 40,
       "minStreamCount": 150
     }
-  },
-  "rotationCleanup": [
-    {
-      "deleteKey": "radsync/state/current/somafm/45600854091-27e09937f144/sha256/ac463b1610ab84f139c0eb8e0f64398364c474aefde455fa1b9579ae6a7e6cf3/active.jsonl.zst",
-      "replacementKey": "radsync/state/previous/somafm/45803662932-c5197a717fea/sha256/ac463b1610ab84f139c0eb8e0f64398364c474aefde455fa1b9579ae6a7e6cf3/previous.jsonl.zst",
-      "replacementRole": "previous",
-      "sha256": "ac463b1610ab84f139c0eb8e0f64398364c474aefde455fa1b9579ae6a7e6cf3"
-    },
-    {
-      "deleteKey": "radsync/state/previous/somafm/45600854091-27e09937f144/sha256/a498845f86ce9da43aa5349e4a431622f050f9285e6f8c0f7145c4540f43d7da/previous.jsonl.zst",
-      "replacementKey": "radsync/state/archive/somafm/2026-11-26T10-45-21Z-45803662932-c5197a717fea-a498845f86ce9da43aa5349e4a431622f050f9285e6f8c0f7145c4540f43d7da.jsonl.zst",
-      "replacementRole": "archive",
-      "sha256": "a498845f86ce9da43aa5349e4a431622f050f9285e6f8c0f7145c4540f43d7da"
-    }
-  ]
+  }
 }
