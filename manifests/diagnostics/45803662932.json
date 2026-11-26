@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "format": "json-zstd",
+  "runId": "45803662932",
+  "kind": "identity-ambiguity",
+  "objectKey": "radsync/diagnostics/identity-ambiguity-45803662932-c5197a717fea-bb1771bb893efc77c0362b471d3f4f2bff72c867f01a69db6e679b32ce0721e6.json.zst",
+  "sha256": "bb1771bb893efc77c0362b471d3f4f2bff72c867f01a69db6e679b32ce0721e6",
+  "compressedBytes": 179059,
+  "verifiedAt": "2026-11-26T10:47:11.385622+00:00"
+}

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "format": "json-zstd",
+  "runId": "45803662932",
+  "objectKey": "radsync/diagnostics/refresh-report-45803662932-c5197a717fea-ba00644b7f3843508a2e7cdd785ee93869174a77a456d1ef6858f55021ed28d5.json.zst",
+  "sha256": "ba00644b7f3843508a2e7cdd785ee93869174a77a456d1ef6858f55021ed28d5",
+  "compressedBytes": 7671321,
+  "verifiedAt": "2026-11-26T10:47:10.191378+00:00"
+}
