@@ -3,31 +3,45 @@
   "layoutVersion": 2,
   "format": "radsync-jsonl-zstd-v1",
   "source": "airwavedb",
-  "objectKey": "radsync/state/current/airwavedb/45984379959-f901d91e6dc5/sha256/a6ccfe16ee3c4bad4a9bfe3edca9732fc20d148fec0f2e0174f4c053ac0018c1/active.jsonl.zst",
-  "sha256": "a6ccfe16ee3c4bad4a9bfe3edca9732fc20d148fec0f2e0174f4c053ac0018c1",
-  "compressedBytes": 7608268,
+  "objectKey": "radsync/state/current/airwavedb/46133361199-431e62d602bd/sha256/120ace5daf07bc14a2f9a7d882ca4c267de2ab8baf3b2cc8b4710836c87fbbf9/active.jsonl.zst",
+  "sha256": "120ace5daf07bc14a2f9a7d882ca4c267de2ab8baf3b2cc8b4710836c87fbbf9",
+  "compressedBytes": 7603323,
   "stationCount": 55651,
   "streamCount": 58833,
-  "snapshotUpdatedAt": "2026-11-27T10:44:20.848284+00:00",
+  "snapshotUpdatedAt": "2026-11-28T10:05:13.147115+00:00",
   "anomalyBounds": {
     "minStationCount": 50000,
     "maxStationDropRatio": 0.1,
     "minStreamCount": 52000,
     "maxStreamDropRatio": 0.15
   },
-  "verifiedAt": "2026-11-27T10:50:05.546695+00:00",
+  "verifiedAt": "2026-11-28T10:09:47.060797+00:00",
   "previous": {
-    "objectKey": "radsync/state/previous/airwavedb/45984379959-f901d91e6dc5/sha256/2b86d4bb352aeb2a626af44a1d9a98a02f2c74771a97290f976c9ccd1ab05f57/previous.jsonl.zst",
-    "sha256": "2b86d4bb352aeb2a626af44a1d9a98a02f2c74771a97290f976c9ccd1ab05f57",
-    "compressedBytes": 7599985,
+    "objectKey": "radsync/state/previous/airwavedb/46133361199-431e62d602bd/sha256/a6ccfe16ee3c4bad4a9bfe3edca9732fc20d148fec0f2e0174f4c053ac0018c1/previous.jsonl.zst",
+    "sha256": "a6ccfe16ee3c4bad4a9bfe3edca9732fc20d148fec0f2e0174f4c053ac0018c1",
+    "compressedBytes": 7608268,
     "stationCount": 55651,
     "streamCount": 58833,
-    "snapshotUpdatedAt": "2026-11-26T10:42:25.621603+00:00",
+    "snapshotUpdatedAt": "2026-11-27T10:44:20.848284+00:00",
     "anomalyBounds": {
       "maxStationDropRatio": 0.1,
       "maxStreamDropRatio": 0.15,
       "minStationCount": 50000,
       "minStreamCount": 52000
     }
-  }
+  },
+  "rotationCleanup": [
+    {
+      "deleteKey": "radsync/state/current/airwavedb/45984379959-f901d91e6dc5/sha256/a6ccfe16ee3c4bad4a9bfe3edca9732fc20d148fec0f2e0174f4c053ac0018c1/active.jsonl.zst",
+      "replacementKey": "radsync/state/previous/airwavedb/46133361199-431e62d602bd/sha256/a6ccfe16ee3c4bad4a9bfe3edca9732fc20d148fec0f2e0174f4c053ac0018c1/previous.jsonl.zst",
+      "replacementRole": "previous",
+      "sha256": "a6ccfe16ee3c4bad4a9bfe3edca9732fc20d148fec0f2e0174f4c053ac0018c1"
+    },
+    {
+      "deleteKey": "radsync/state/previous/airwavedb/45984379959-f901d91e6dc5/sha256/2b86d4bb352aeb2a626af44a1d9a98a02f2c74771a97290f976c9ccd1ab05f57/previous.jsonl.zst",
+      "replacementKey": "radsync/state/archive/airwavedb/2026-11-28T10-09-00Z-46133361199-431e62d602bd-2b86d4bb352aeb2a626af44a1d9a98a02f2c74771a97290f976c9ccd1ab05f57.jsonl.zst",
+      "replacementRole": "archive",
+      "sha256": "2b86d4bb352aeb2a626af44a1d9a98a02f2c74771a97290f976c9ccd1ab05f57"
+    }
+  ]
 }
