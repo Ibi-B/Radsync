@@ -29,19 +29,5 @@
       "minStationCount": 10000,
       "minStreamCount": 10000
     }
-  },
-  "rotationCleanup": [
-    {
-      "deleteKey": "radsync/state/current/icecast/45984379959-f901d91e6dc5/sha256/cdda143960f9e7b7c2f80acf19f18379e57c8123abfdfa8335838d4f52b0f738/active.jsonl.zst",
-      "replacementKey": "radsync/state/previous/icecast/46133361199-431e62d602bd/sha256/cdda143960f9e7b7c2f80acf19f18379e57c8123abfdfa8335838d4f52b0f738/previous.jsonl.zst",
-      "replacementRole": "previous",
-      "sha256": "cdda143960f9e7b7c2f80acf19f18379e57c8123abfdfa8335838d4f52b0f738"
-    },
-    {
-      "deleteKey": "radsync/state/previous/icecast/45984379959-f901d91e6dc5/sha256/a7537fc9f8b7c0688ea65bf554f0fe25b22674195e29c70e598ae6f70c1fe586/previous.jsonl.zst",
-      "replacementKey": "radsync/state/archive/icecast/2026-11-28T10-09-00Z-46133361199-431e62d602bd-a7537fc9f8b7c0688ea65bf554f0fe25b22674195e29c70e598ae6f70c1fe586.jsonl.zst",
-      "replacementRole": "archive",
-      "sha256": "a7537fc9f8b7c0688ea65bf554f0fe25b22674195e29c70e598ae6f70c1fe586"
-    }
-  ]
+  }
 }
